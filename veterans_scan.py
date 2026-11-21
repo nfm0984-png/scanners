@@ -220,6 +220,24 @@ def hedged_events(trades):
     return bad
 
 
+MKT = {}
+
+
+def game_when(ticker):
+    """Best-effort game date/time in Pacific, from the market's own time fields. '—' if unknown."""
+    m = MKT.get(ticker) or {}
+    for k in ("occurrence_datetime", "expected_expiration_time", "close_time"):
+        v = m.get(k)
+        if not v:
+            continue
+        try:
+            d = datetime.fromisoformat(str(v).replace("Z", "+00:00")).astimezone(ZoneInfo("America/Los_Angeles"))
+            return d.strftime("%a %b %-d · %-I:%M %p")
+        except Exception:
+            continue
+    return "—"
+
+
 def current_price(ticker, side):
     """Live price of the side they bought, from Kalshi's public market endpoint. None if unknown."""
     if not ticker:
@@ -229,6 +247,7 @@ def current_price(ticker, side):
                                      headers={"User-Agent": "kalshi-scanner/1.0"})
         with urllib.request.urlopen(req, timeout=15) as r:
             m = json.loads(r.read().decode()).get("market", {})
+        MKT[ticker] = m
     except Exception:
         return None
     def px(*keys):
@@ -308,7 +327,7 @@ def main():
             if moved is not None and moved > MAX_SLIP:
                 continue  # price already ran past their entry: no edge left
             age = now - g["ts"]
-            picks.append(["Kalshi", "Position", "—", t["title"],
+            picks.append(["Kalshi", "Position", game_when(t["ticker"]), t["title"],
                           f"{t['side'] or 'BUY'} @ {int(entry * 100)}c" + (f" → now {int(cur * 100)}c" if cur is not None else ""),
                           round(g["usd"]), round(1 / entry, 1) if entry else 0, ago(age)])
             new_ids = [i for i in g["ids"] if i not in seen]
