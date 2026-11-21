@@ -90,7 +90,7 @@ function teams(t){t=String(t||"").trim();var m=t.replace(/^(spread|moneyline|tot
  var r=/^(.+?)\s+(?:vs\.?|v\.?|@|beat|defeat|beats|defeats|win against|win vs\.?)\s+(.+?)(?:\s+(?:on|by|in|at|over|with|after|before)\s.*|\s*[:(\-–|].*)?$/i.exec(m);
  if(r)return (r[1].replace(/^the\s+/i,"")).replace(/\s+(win|to win)$/i,"").trim()+" vs "+r[2].replace(/^the\s+/i,"").replace(/\s+(win|to win)$/i,"").trim();
  m=m.replace(/\s+(win|to win)\b.*$/i,"").replace(/\s*[:(].*$/,"");return(m||t).replace(/(^|\svs\s)the\s+/gi,"$1")}
-function tv(a){var t=tv(a);if(/ vs /.test(t))return t;var e2=a.ev?teams(a.ev):"";if(/ vs /.test(e2))return e2;var s=String(a.slug||"").split("-");return t}
+function tv(a){var t=teams(a.market);if(/ vs /.test(t))return t;var e2=a.ev?teams(a.ev):"";if(/ vs /.test(e2))return e2;var s=String(a.slug||"").split("-");return t}
 function mx(p){return p>0&&p<1?(Math.round(100/p)/100)+"x":"—"}
 function pick(o){for(var i=1;i<arguments.length;i++){var v=o[arguments[i]];if(v!==undefined&&v!==null&&v!=="")return v}return null}
 function rowsOf(j){if(Array.isArray(j))return j;if(j&&typeof j==="object"){var ks=["alerts","data","items","results","trades","leaderboard","whales"];for(var i=0;i<ks.length;i++)if(Array.isArray(j[ks[i]]))return j[ks[i]];for(var k in j)if(Array.isArray(j[k]))return j[k]}return[]}
