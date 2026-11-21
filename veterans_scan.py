@@ -220,6 +220,20 @@ def hedged_events(trades):
     return bad
 
 
+SPORT_TAGS = [("WNBA", "WNBA"), ("NCAAMB", "NCAAB"), ("NCAAWB", "NCAAB"), ("NCAAB", "NCAAB"), ("NBA", "NBA"), ("NCAAF", "NCAAF"),
+              ("NFL", "NFL"), ("MLB", "MLB"), ("NHL", "NHL"), ("UFC", "MMA"), ("ATP", "Tennis"), ("WTA", "Tennis"),
+              ("EPL", "Soccer"), ("MLS", "Soccer"), ("LALIGA", "Soccer"), ("SERIEA", "Soccer"), ("BUNDESLIGA", "Soccer"),
+              ("UCL", "Soccer"), ("PGA", "Golf"), ("F1", "Racing"), ("NASCAR", "Racing")]
+
+
+def sport_of(ticker):
+    t = str(ticker or "").upper()
+    for key, label in SPORT_TAGS:
+        if key in t:
+            return label
+    return "Sports"
+
+
 MKT = {}
 
 
@@ -327,7 +341,7 @@ def main():
             if moved is not None and moved > MAX_SLIP:
                 continue  # price already ran past their entry: no edge left
             age = now - g["ts"]
-            picks.append(["Kalshi", "Position", game_when(t["ticker"]), t["title"],
+            picks.append([sport_of(t["ticker"]), "Position", game_when(t["ticker"]), t["title"],
                           f"{t['side'] or 'BUY'} @ {int(entry * 100)}c" + (f" → now {int(cur * 100)}c" if cur is not None else ""),
                           round(g["usd"]), round(1 / entry, 1) if entry else 0, ago(age)])
             new_ids = [i for i in g["ids"] if i not in seen]
