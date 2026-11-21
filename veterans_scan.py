@@ -252,6 +252,20 @@ def game_when(ticker):
     return "—"
 
 
+def pick_label(ticker, side, entry, cur):
+    """'<what Kalshi calls the contract> · Yes/No' so the page can name the team to pick."""
+    m = MKT.get(ticker) or {}
+    sub = m.get("yes_sub_title") or m.get("subtitle") or ""
+    sd = "No" if str(side).upper() == "NO" else "Yes"
+    if sub:
+        return f"{sub} · {sd}"
+    return f"{t_side(side)} @ {int(entry * 100)}c" + (f" → now {int(cur * 100)}c" if cur is not None else "")
+
+
+def t_side(side):
+    return side or "BUY"
+
+
 def current_price(ticker, side):
     """Live price of the side they bought, from Kalshi's public market endpoint. None if unknown."""
     if not ticker:
@@ -342,7 +356,7 @@ def main():
                 continue  # price already ran past their entry: no edge left
             age = now - g["ts"]
             picks.append([sport_of(t["ticker"]), "Position", game_when(t["ticker"]), t["title"],
-                          f"{t['side'] or 'BUY'} @ {int(entry * 100)}c" + (f" → now {int(cur * 100)}c" if cur is not None else ""),
+                          pick_label(t["ticker"], t["side"], entry, cur),
                           round(g["usd"]), round(1 / entry, 1) if entry else 0, ago(age)])
             new_ids = [i for i in g["ids"] if i not in seen]
             if new_ids and not first:
