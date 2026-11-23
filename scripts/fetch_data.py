@@ -14,12 +14,17 @@ TOP = int(os.environ.get("TOP_N", "100"))
 KALSHI_MIN_USD = float(os.environ.get("KALSHI_MIN_USD", "499"))
 
 
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
+      "Chrome/124.0 Safari/537.36")
+
+
 def get(url, headers=None, tries=3):
     last = None
     for i in range(tries):
         try:
             req = urllib.request.Request(url, headers=dict({"Accept": "application/json",
-                                                           "User-Agent": "whale-scanner-data/1.0"}, **(headers or {})))
+                                                           "User-Agent": UA, "Origin": "https://polymarket.com", "Referer": "https://polymarket.com/",
+                                                           "Accept-Language": "en-US,en;q=0.9"}, **(headers or {})))
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
@@ -87,6 +92,89 @@ def slim(rows, keys):
     return [{k: r.get(k) for k in keys if k in r} for r in rows if isinstance(r, dict)]
 
 
+def post(url, body, headers=None):
+    h = {"Accept": "application/json", "Content-Type": "application/json", "User-Agent": UA}
+    h.update(headers or {})
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST", headers=h)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def pick(o, *keys):
+    for k in keys:
+        v = o.get(k)
+        if v is not None and v != "":
+            return v
+    return None
+
+
+def num(v):
+    try:
+        return float(v)
+    except Exception:
+        return None
+
+
+def norm_pos(r):
+    m = r.get("market") if isinstance(r.get("market"), dict) else {}
+    title = pick(r, "title", "market_title", "question", "market_question", "name") or m.get("question") or m.get("title") \
+        or (r.get("market") if isinstance(r.get("market"), str) else "") or ""
+    cv = num(pick(r, "currentValue", "current_value", "value", "usd_value", "market_value"))
+    iv = num(pick(r, "initialValue", "initial_value", "cost", "cost_basis", "invested", "initial_cost"))
+    ap = num(pick(r, "avgPrice", "avg_price", "average_price", "entry_price", "avg_entry_price"))
+    cp = num(pick(r, "curPrice", "cur_price", "current_price", "price", "mark_price"))
+    sh = num(pick(r, "size", "shares", "quantity", "position_size"))
+    if cv is None and sh is not None and cp is not None:
+        cv = sh * cp
+    if iv is None and sh is not None and ap is not None:
+        iv = sh * ap
+    return {"title": str(title), "outcome": str(pick(r, "outcome", "outcome_name", "side", "position") or ""),
+            "avgPrice": ap, "curPrice": cp, "currentValue": cv, "initialValue": iv,
+            "cashPnl": num(pick(r, "cashPnl", "pnl", "unrealized_pnl", "cash_pnl")),
+            "endDate": pick(r, "endDate", "end_date", "end_time"), "slug": pick(r, "slug", "event_slug") or m.get("slug"),
+            "redeemable": bool(pick(r, "redeemable", "is_resolved", "resolved"))}
+
+
+ORCA_FORM = [None]
+
+
+def orca_positions(w):
+    key = os.environ.get("ORCA_KEY", "")
+    forms = ["wallets", "addresses", "wallet", "wallet_addresses"]
+    if ORCA_FORM[0]:
+        forms = [ORCA_FORM[0]] + [f for f in forms if f != ORCA_FORM[0]]
+    last = None
+    for f in forms:
+        for hdr in ([{"X-API-Key": key}] if key else []) + [{}]:
+            try:
+                j = post(ORCA + "/api/public/v1/wallets/positions", {f: (w if f == "wallet" else [w])}, hdr)
+            except Exception as e:
+                last = e
+                continue
+            rows = None
+            if isinstance(j, list):
+                rows = j
+            elif isinstance(j, dict):
+                q = j.get(w) or (j.get("results") or {}).get(w) if isinstance(j.get("results"), dict) else j.get(w)
+                if isinstance(q, list):
+                    rows = q
+                elif isinstance(q, dict) and isinstance(q.get("positions"), list):
+                    rows = q["positions"]
+                elif isinstance(j.get("positions"), list):
+                    rows = j["positions"]
+                else:
+                    a = rows_of(j)
+                    if a and isinstance(a[0], dict) and ("positions" in a[0] or "wallet" in a[0]):
+                        z = next((y for y in a if str(y.get("wallet") or y.get("address") or "").lower() == w), a[0])
+                        rows = z.get("positions") or []
+                    else:
+                        rows = a
+            if rows is not None:
+                ORCA_FORM[0] = f
+                return [p for p in (norm_pos(r) for r in rows if isinstance(r, dict)) if p["title"]]
+    raise last or RuntimeError("orca positions failed")
+
+
 def wallets_data(wallets):
     pos, closed = {}, {}
     for i, w in enumerate(wallets):
@@ -95,6 +183,10 @@ def wallets_data(wallets):
                                       "&sortBy=CURRENT&sortDirection=DESC")), POS_KEYS)
         except Exception as e:
             print("positions fail", w, e, file=sys.stderr)
+            try:
+                pos[w] = orca_positions(w)
+            except Exception as e2:
+                print("orca positions fail", w, e2, file=sys.stderr)
         try:
             closed[w] = slim(rows_of(get(f"{DATA_API}/closed-positions?user={w}&limit=50")), CLOSED_KEYS)
         except Exception as e:
