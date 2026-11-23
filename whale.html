@@ -79,7 +79,7 @@ pre{background:#0B2540;color:#BFE6F5;border-radius:14px;padding:12px;font-size:1
 <div class="tabs" id="tabs">
   <button class="pill on" data-t="feed">Whale feed</button>
   <button class="pill" data-t="board">Leaderboard</button>
-  <button class="pill" data-t="caps">Cappers</button><button class="pill" data-t="risk">Risky</button>
+  <button class="pill" data-t="caps">Cappers</button><button class="pill" data-t="combo">Combos</button><button class="pill" data-t="risk">Risky</button>
   <button class="pill" data-t="set">Settings</button>
 </div>
 <div class="in">
@@ -227,9 +227,17 @@ function rcard(x,i,tag){var a=x.a,rv=rview(x),r=review(x);return'<div class="car
 function rvHtml(r){return'<div class="dd" style="display:block"><div class="ds">Review · '+e(r.v)+'</div>'+(r.pro.length?'<div class="gm" style="font-size:14px">✅ '+e(r.pro.join(" · "))+'</div>':"")+(r.con.length?'<div class="gm" style="font-size:14px">⚠️ '+e(r.con.join(" · "))+'</div>':"")+'</div>'}
 function combos(R){var C=R.filter(function(x){return x.score>=50&&x.px>=0.4&&x.px<=0.85}).sort(function(p,q){return q.score-p.score}),used={},legs=[];C.forEach(function(x){var k=gkey(x.a);if(used[k])return;used[k]=1;legs.push(x)});
  var out=[];if(legs.length>=2)out.push({n:"2-pick combo",L:legs.slice(0,2)});if(legs.length>=3)out.push({n:"3-pick combo",L:legs.slice(0,3)});if(legs.length>=4)out.push({n:"Big 4-pick combo",L:legs.slice(0,4)});return out}
+function topRows(R){var G={};goodCaps().forEach(function(c){var f=S.cf[c.w],t=trustOf(c,f);if(c.pnl>0&&t.l!=="Cold"&&!(f&&f.n>=5&&f.pnl<0))G[c.w]=1});var out=[];R.forEach(function(x){var ms=x.ms.filter(function(m){return G[(m.a.wallet||"").toLowerCase()]});if(!ms.length)return;var y={};for(var k in x)y[k]=x[k];y.ms=ms;y.usd=ms.reduce(function(t,m){return t+m.usd},0);out.push(y)});return out}
+function comboTab(){var R=S.rows||[],h='<div class="sub">Combos built <b>only</b> from cappers that make money: profitable on the leaderboard (Trusted or Solid), not cold lately, and not losing over their recent settled bets. Random wallets are left out.</div>';
+ if(!S.pool.length){loadPool();return h+'<div class="card empty"><b>Loading the leaderboard…</b>Then tap Scan on the Whale feed.</div>'}
+ if(!R.length)return h+'<div class="card empty"><b>No picks loaded</b>Go to Whale feed and tap Scan first.</div>';
+ var T=topRows(R),CB=combos(T);h+='<div class="sub" style="margin:6px 2px"><b>'+T.length+' picks</b> from top cappers right now (of '+R.length+' total) · '+goodCaps().length+' top cappers tracked</div>';
+ if(!CB.length)return h+'<div class="card empty"><b>Not enough top-capper games yet</b>Combos need 2+ different games from top cappers. Try Last 3h or 12h on the feed.</div>';
+ return h+CB.map(function(c){var mult=c.L.reduce(function(t,x){return t*(1/x.px)},1),pr=c.L.reduce(function(t,x){return t*x.px},1),sc=Math.round(c.L.reduce(function(t,x){return t+x.score},0)/c.L.length),worst=c.L.some(function(x){return x.ms.length<2}),rv=c.L.length>=4?"Pass or tiny stake":pr<0.15?"Small stake only":worst?"Lean small":"Worth a look";
+  return'<div class="card"><div class="meta"><span>'+e(c.n)+'</span><span>All must win</span></div><div class="tags"><span class="tag g">Pays '+(Math.round(mult*10)/10)+'x</span><span class="tag d">Hits ~'+Math.round(pr*100)+'% of the time</span><span class="tag sc s'+grade(sc)+'">Avg '+sc+' · '+grade(sc)+'</span></div>'+c.L.map(function(x,i){var rv2=rview(x);return'<div class="dr"><b>'+(i+1)+'. '+e(x.a.sp.e+" "+tv(x.a))+'</b><span>'+e(x.lab)+' · '+mx(x.px)+'</span><small>'+x.ms.length+' top capper'+(x.ms.length>1?"s":"")+' · '+$(x.usd)+(rv2.t?" · "+e(rv2.t):"")+'</small><div style="width:100%">'+capLine(x)+'</div></div>'}).join("")+'<div class="dd" style="display:block"><div class="ds">Review · '+rv+'</div><div class="gm" style="font-size:14px">Every leg has to win, so one miss loses the whole combo. Hit chance is the legs\' prices multiplied, before fees. Real hit rate is often lower.</div></div></div>'}).join("")}
 function risky(){var R=S.rows||[],h='<div class="sub">Higher-risk, higher-payout picks. Every pick gets a written review. Reviews are auto-written by the scanner from the cappers, grade, price and timing. They are a guide, not a guarantee.</div>';
  if(!R.length)return h+'<div class="card empty"><b>No picks loaded</b>Go to Whale feed and tap Scan first.</div>';
- var CB=combos(R);h+='<h3 style="margin:14px 2px 6px">🎰 Combo picks</h3>';
+ var CB=[];h+='';
  if(!CB.length)h+='<div class="card empty"><b>Not enough separate games yet</b>Combos need 2+ different games from good cappers. Try Last 3h or 12h.</div>';
  CB.forEach(function(c){var mult=c.L.reduce(function(t,x){return t*(1/x.px)},1),pr=c.L.reduce(function(t,x){return t*x.px},1),sc=Math.round(c.L.reduce(function(t,x){return t+x.score},0)/c.L.length),worst=c.L.some(function(x){return x.ms.length<2});
   var rv=c.L.length>=4?"Pass or tiny stake":pr<0.15?"Small stake only":worst?"Lean small":"Worth a look";
@@ -313,7 +321,7 @@ function cappers(){return'<div class="sub">Every capper you can trust or track. 
 function fillCaps(){var el=document.getElementById("clist");if(el)el.innerHTML=clist()}
 function draw(){savePrefs();var R=S.rows,tot=R.reduce(function(m,x){return m+x.usd},0),top=R.reduce(function(m,x){return Math.max(m,x.usd)},0);
  s1.textContent=R.length;s2.textContent=tot?$(tot):"0";s3.textContent=S.hedged;s4.textContent=top?$(top):"—";
- main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="caps"?cappers():S.t==="risk"?risky():settings();
+ main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="caps"?cappers():S.t==="combo"?comboTab():S.t==="risk"?risky():settings();
  [].forEach.call(tabs.children,function(b){b.className="pill"+(b.dataset.t===S.t?" on":"")});auto.textContent="Auto: "+(S.auto?"on":"off")}
 var main=document.getElementById("main"),tabs=document.getElementById("tabs"),statusEl=document.getElementById("status"),go=document.getElementById("go"),auto=document.getElementById("auto");
 var s1=document.getElementById("s1"),s2=document.getElementById("s2"),s3=document.getElementById("s3"),s4=document.getElementById("s4");
@@ -325,7 +333,7 @@ function scan(){var k=ls("orca_key");S.err="";if(!k){S.err="Add your Orca key in
    S.raw=p+" -> "+(x.status||"network error")+"\n"+(x.body?String(x.body).slice(0,600):String(x));
    if(x.status===401||x.status===403){S.err=(x.status===403?"Your plan isn’t Premium for this endpoint.":"Key rejected.")+" ("+x.status+")";fin()}else if(!x.status){S.err="Failed to fetch. The API may block browser requests (CORS), or you’re offline.";fin()}else next()})})();
  function fin(){go.disabled=false;go.textContent="⚡ Scan";draw()}}
-tabs.onclick=function(ev){var b=ev.target.closest("button");if(b){S.t=b.dataset.t;draw();if(S.t==="board"&&!S.board.length&&!S.boardErr)loadBoard();if(S.t==="caps"){if(!S.pool.length)loadPool();S.fol.slice(0,12).forEach(function(f){S.open[f.w]=S.open[f.w]!==false;loadCap(f.w);loadHist(f.w)})}}};
+tabs.onclick=function(ev){var b=ev.target.closest("button");if(b){S.t=b.dataset.t;draw();if(S.t==="board"&&!S.board.length&&!S.boardErr)loadBoard();if(S.t==="combo"||S.t==="risk"){if(!S.pool.length)loadPool()}if(S.t==="caps"){if(!S.pool.length)loadPool();S.fol.slice(0,12).forEach(function(f){S.open[f.w]=S.open[f.w]!==false;loadCap(f.w);loadHist(f.w)})}}};
 main.oninput=function(ev){if(ev.target.id==="cq"){S.cq=ev.target.value;fillCaps()}};
 main.onclick=function(ev){var b=ev.target.closest("button");if(!b)return;if(b.classList.contains("cp")){cpy(b.dataset.cp);return}
  if(b.dataset.fol){var w=b.dataset.fol,i=S.fol.findIndex(function(f){return f.w===w});if(i>=0)S.fol.splice(i,1);else{var c=capList().filter(function(x){return x.w===w})[0];S.fol.push({w:w,n:c?c.who:w.slice(0,8)});S.open[w]=true;loadCap(w);loadHist(w)}saveFol();draw();return}
