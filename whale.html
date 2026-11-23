@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B2540">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scanners">
 <meta name="robots" content="noindex">
 <title>Whale Scanner</title>
 <style>
@@ -99,6 +106,8 @@ var PATHS=["/api/v2/whales/alerts","/api/v2/whale-alerts","/api/v2/alerts","/api
 var SPORT=[" vs "," vs. ","nfl","nba","ncaa","mlb","nhl","epl","ufc","spread","moneyline","o/u","over/under","premier league","champions league","world cup","tennis","grand prix","playoff","mvp"];
 var S={t:"feed",min:1000,mins:60,sports:true,maxpx:0.97,auto:false,rows:[],total:0,keys:"",sample:"",hedged:0,raw:"",err:"",board:[],boardErr:"",lim:50,gm:{},sport:"",proven:true,only:false,rr:null},timer=null;
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k)||"";if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return""}}
+(function(){try{var p=JSON.parse(ls("whale_prefs")||"{}");["min","mins","lim"].forEach(function(k){if(typeof p[k]==="number")S[k]=p[k]});["sports","proven","only"].forEach(function(k){if(typeof p[k]==="boolean")S[k]=p[k]})}catch(e){}})();
+function savePrefs(){ls("whale_prefs",JSON.stringify({min:S.min,mins:S.mins,lim:S.lim,sports:S.sports,proven:S.proven,only:S.only}))}
 function e(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(n){n=+n||0;if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";if(n>=1000)return"$"+(n/1000).toFixed(1).replace(/\.0$/,"")+"k";return"$"+Math.round(n)}
 function cpy(t){function ok(){toast0("Copied")}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,fb)}else fb();function fb(){var x=document.createElement("textarea");x.value=t;x.style.position="fixed";x.style.opacity=0;document.body.appendChild(x);x.select();try{document.execCommand("copy");ok()}catch(_){toast0("Press and hold the text to copy")}x.remove()}}
@@ -200,7 +209,7 @@ function board(){var h='<div class="sub">Public leaderboard. No key needed.</div
 function loadBoard(){S.boardErr="";S.board=[];draw();get("/api/public/v1/whales/leaderboard?limit="+Math.min(S.lim,100)).then(function(j){S.board=rowsOf(j);if(S.rr)S.rows=build(S.rr);draw()}).catch(function(x){S.boardErr=x.status?"Error "+x.status+(x.status===400||x.status===422?" (that size may be above Orca's limit; try a smaller number)":""):"Failed to fetch (browser may be blocked).";draw()})}
 function settings(){var k=ls("orca_key");
  return'<h2 style="margin:0">Settings</h2><div class="card"><label>Orca API key</label><input id="key" type="password" placeholder="'+(k?"Saved in this browser":"Paste your key")+'" autocomplete="off"><button class="b1" id="sk">Save key</button>'+(k?'<button class="b2" id="ck">Remove key</button>':'')+'<p style="color:var(--mut);font-size:14px">Stored only in this browser. It is never put in the page or the repo. Use a fresh key, and don’t save it on a shared device.</p><label>Whale-alerts path (optional)</label><input id="path" value="'+e(ls("orca_path"))+'" placeholder="auto: tries several"><button class="b1" id="sp">Save path</button></div><div class="card"><b>Last raw response</b><pre>'+e(S.raw||"Nothing yet. Tap Scan.")+'</pre></div>'}
-function draw(){var R=S.rows,tot=R.reduce(function(m,x){return m+x.usd},0),top=R.reduce(function(m,x){return Math.max(m,x.usd)},0);
+function draw(){savePrefs();var R=S.rows,tot=R.reduce(function(m,x){return m+x.usd},0),top=R.reduce(function(m,x){return Math.max(m,x.usd)},0);
  s1.textContent=R.length;s2.textContent=tot?$(tot):"0";s3.textContent=S.hedged;s4.textContent=top?$(top):"—";
  main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():settings();
  [].forEach.call(tabs.children,function(b){b.className="pill"+(b.dataset.t===S.t?" on":"")});auto.textContent="Auto: "+(S.auto?"on":"off")}
