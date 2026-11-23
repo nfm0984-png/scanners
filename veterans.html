@@ -107,6 +107,26 @@ dialog input{width:100%;border:1.5px solid var(--line);border-radius:12px;paddin
 .fl{flex-wrap:wrap;overflow:visible;gap:6px;padding:10px 0 2px}
 .fc{padding:6px 12px;min-height:36px;font-size:14px}
 .tag.sc{font-weight:900}.tag.sA{background:var(--goodbg);color:var(--good)}.tag.sB{background:#FEF9C3;color:#854D0E}.tag.sC{background:#E5E7EB;color:#4B5563}
+.wrap{display:block}
+.sbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 2px}
+.sbar input{flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:999px;padding:9px 16px;background:#fff;font-size:15px}
+.sd{background:#0B2540;color:#E6F3FA;border-radius:22px;padding:16px 18px;margin-top:14px}
+.sd h4{margin:0 0 8px;font-size:17px;color:#fff}
+.sd .r{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.12);font-size:14.5px}
+.sd .r:first-of-type{border-top:0}
+.sd .r b{color:#5EEAD4;text-align:right}
+.sd .r b.w{color:#7DD3FC}
+.sd small{display:block;color:#9FC3D6;font-size:12.5px;margin-top:6px}
+.dt{font-size:12.5px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:#CFE9F5;margin:0 0 4px}
+@media(min-width:1000px){
+ .col{max-width:1180px;padding:0 28px 40px}
+ .tabs{border-radius:0 0 18px 18px}
+ .wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
+ #side{position:sticky;top:78px}
+ .sd:first-child{margin-top:0}
+ .hero{padding:22px 26px}.hero h2{font-size:28px}
+ .st{gap:12px}.st div{padding:14px 10px}.st b{font-size:28px}.st span{font-size:11.5px}
+}
 </style>
 </head>
 <body>
@@ -118,7 +138,7 @@ dialog input{width:100%;border:1.5px solid var(--line);border-radius:12px;paddin
   <div class="jour" id="jour">Sample data · next scan at 2:33 PM PT</div>
 
   <div class="hero">
-    <div class="ey"><b>KALSHI · VETERAN SIGNALS</b><span class="live" id="live">Sample · tap to scan</span></div>
+    <div class="ey"><b id="dt">KALSHI · VETERAN SIGNALS</b><span class="live" id="live">Sample · tap to scan</span></div>
     
     <p id="scanned">Waiting for the first scan</p>
     <div class="hbtn"><button class="p" id="scan">⚡ Scan</button><button id="refresh">↻ Refresh</button></div>
@@ -126,7 +146,7 @@ dialog input{width:100%;border:1.5px solid var(--line);border-radius:12px;paddin
       <div><b id="s1">0</b><span>Veterans</span></div>
       <div><b id="s2">0</b><span>Fresh buys</span></div>
       <div><b id="s3">0</b><span>Open picks</span></div>
-      <div><b id="s4">—</b><span>Biggest bet</span></div>
+      <div><b id="s4">—</b><span id="s4l">Record</span></div>
     </div>
     <div class="chips"><span class="chip">Two-sided bets hidden</span><span class="chip" id="c2">$500 min</span><span class="chip">4 auto scans a day</span></div>
   </div>
@@ -134,7 +154,7 @@ dialog input{width:100%;border:1.5px solid var(--line);border-radius:12px;paddin
   <details class="rules"><summary><div><b>Pick rules</b><span class="s">Veterans only · fresh buys · no hedges</span></div><span>▼</span></summary>
     <ul><li>Veterans are traders in the top 50 of both the all-time and this-year Sports boards.</li><li>A pick is a buy of $500 or more, made in the last scan window, at 1.05x payout or better.</li><li>If a trader holds both sides of a game, every bet on that game is hidden.</li><li>Not financial advice. Even the best traders lose often.</li></ul></details>
 
-  <div id="main"></div>
+  <div class="wrap"><div id="main"></div><aside id="side"></aside></div>
 </div>
 </div>
 
@@ -154,7 +174,7 @@ var C=[
 {n:"nettinyahoo",rec:"+$91.6k all-time",sub:"Weekly #47",st:[["+$91.6k","All-time P&L"],["#47","Weekly rank"]],p:[
  ["NCAAF","Spread","Sat 12:00 PM","BYU vs Kansas: 1st half","BYU wins by over 2.5 · Yes",912,7.7,"51m"]]}
 ];
-var S={t:"picks",min:500,fresh:false,sport:""},live=false;
+var S={t:"picks",min:500,fresh:false,sport:"",when:"all",q:""},REC=null,HIST=[],live=false;
 function e(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(n){n=+n||0;if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";if(n>=1000)return"$"+(n/1000).toFixed(1).replace(/\.0$/,"")+"k";return"$"+Math.round(n)}
 function flat(){var o=[];C.forEach(function(c){(c.p||[]).forEach(function(p){o.push({c:c,p:p})})});return o}
@@ -189,26 +209,40 @@ var TM={NBA:{e:"🏀",r:new RegExp("\\b(lakers|celtics|warriors|knicks|76ers|six
 function sportOf(t){t=String(t||"").toLowerCase();for(var i=0;i<SPT.length;i++)if(SPT[i][0].test(t))return{l:SPT[i][1],e:SPT[i][2]};var best=null,bn=0;for(var k in TM){var m=t.match(TM[k].r),n=m?Object.keys(m.reduce(function(c,x){c[x]=1;return c},{})).length:0;if(n>bn){bn=n;best=k}}if(best)return{l:best,e:TM[best].e};return{l:"Other",e:"🏅"}}
 function sportChips(list){var seen={},o=[];list.forEach(function(s){if(!seen[s.l]){seen[s.l]=1;o.push(s)}});return'<div class="fl" style="padding-top:0">'+fc("","All sports",!S.sport,"sport")+o.map(function(s){return fc(s.l,s.e+" "+s.l,S.sport===s.l,"sport")}).join("")+'</div>'}
 function chip(v,l,on,k){return'<button class="fc'+(on?" on":"")+'" data-'+k+'="'+v+'">'+l+'</button>'}
-function picks(){var AL=shown(),L=S.sport?AL.filter(function(y){return y.sp.l===S.sport}):AL;
- var h='<h3>Ranked · '+L.length+'</h3><div class="sub">Best picks first. Score = capper record, agreement, price, freshness and size</div><div class="fl">'+[[0,"Any size"],[500,"$500+"],[1000,"$1k+"],[5000,"$5k+"],[10000,"$10k+"]].map(function(x){return chip(x[0],x[1],S.min==x[0],"min")}).join("")+chip("f","Fresh only",S.fresh,"fresh")+'</div>';
+function ptNow(){var o={};new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date()).forEach(function(p){o[p.type]=p.value});return o}
+function ptDay(ms){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Los_Angeles"}).format(new Date(ms))}
+function whenOK(y){if(S.when==="all")return true;var t=y.p[8]?Date.parse(y.p[8]):0;if(!t)return false;var td=ptDay(Date.now()),d=ptDay(t);return S.when==="today"?d===td:d>td}
+function qOK(y){if(!S.q)return true;var q=S.q.toLowerCase(),h=(y.p[3]+" "+y.p[4]+" "+y.cs.map(function(m){return m.c.n}).join(" ")).toLowerCase();return h.indexOf(q)>=0}
+function picks(){var AL=shown();
+ var h='<h3>Ranked picks</h3><div class="sub">Best picks first. Score = capper record, agreement, price, freshness and size</div><div class="fl">'+[[0,"Any size"],[500,"$500+"],[1000,"$1k+"],[5000,"$5k+"],[10000,"$10k+"]].map(function(x){return chip(x[0],x[1],S.min==x[0],"min")}).join("")+chip("f","Fresh only",S.fresh,"fresh")+'</div>';
+ h+='<div class="sbar">'+[["all","All"],["today","Today"],["later","Upcoming"]].map(function(x){return chip(x[0],x[1],S.when===x[0],"when")}).join("")+'<input id="q" type="search" placeholder="Search cappers or games" value="'+e(S.q)+'"></div>';
  h+=sportChips(AL.map(function(y){return y.sp}));
- if(!L.length)return h+'<div class="card empty"><b>No ranked picks right now</b>No veteran has a fresh buy that passes the rules. Tap Scan to check again.</div>';
- return h+L.map(function(x,i){var p=x.p,no=/· No$/.test(p[4]);
+ return h+'<div id="plist">'+plist()+'</div>'}
+function plist(){var AL=shown(),L=AL.filter(function(y){return(!S.sport||y.sp.l===S.sport)&&whenOK(y)&&qOK(y)});
+ if(!L.length)return'<div class="card empty"><b>No ranked picks right now</b>Nothing matches. Clear the filters, or tap Scan to check again.</div>';
+ return'<div class="sub" style="margin:10px 2px">'+L.length+' pick'+(L.length>1?"s":"")+'</div>'+L.map(function(x,i){var p=x.p,no=/· No$/.test(p[4]);
   var when=(p[2]&&p[2]!=="—")?p[2]+" PT":"",teams=String(p[3]).split(":")[0],bet=String(p[3]).indexOf(":")>0?String(p[3]).split(":").slice(1).join(":").trim():p[1],ps=String(p[4]).split(" · "),pk=ps[0],side=(ps[1]||(/NO/i.test(ps[0])?"No":"Yes")).toUpperCase(),n=x.cs.length;
   return'<div class="card pk"><div class="pt">'+x.sp.e+" "+e(x.sp.l)+(when?" · "+e(when):"")+(bet?" · "+e(bet):"")+'</div><div class="ttl">'+e(teams)+'</div><div class="pb"><div class="pn">PICK: '+e(pickTeam(p[3],pk,side))+'</div></div><div class="kp">Kalshi · '+e(dot(kLine(p[3],pk,side)))+'</div><div class="tags"><span class="tag sc s'+grade(x.score)+'">Score '+x.score+' · '+grade(x.score)+'</span><span class="tag d">'+$(p[5])+'</span><span class="tag">'+n+' capper'+(n>1?"s":"")+'</span>'+(p[6]?'<span class="tag g">Pays '+p[6]+'x</span>':'')+(p[7]?'<span class="tag o">Bought '+e(p[7])+' ago</span>':'')+'</div><div class="acts"><button class="cp bt" data-cp="'+e(kt(x.p))+'">Copy pick</button><a class="bt l" href="https://kalshi.com" target="_blank" rel="noopener">Open Kalshi ↗</a></div>'+'<div class="dd"><div class="ds">Cappers ('+n+')</div>'+x.cs.map(function(m){var c=m.c;return'<div class="dr"><b>'+e(c.n)+'</b><span>'+$(m.amt)+'</span><small>'+e(c.rec)+' · '+(c.st||[]).map(function(s){return e(s[1])+" "+e(s[0])}).join(" · ")+' · '+e(c.sub)+'</small>'+(c.sp&&c.sp.length?'<small>'+c.sp.map(function(s){return e(s[0])+" "+e(s[1])}).join(" · ")+'</small>':'')+'</div>'}).join("")+'</div></div>'}).join("")}
 function vets(){return'<h3>Veterans · '+C.length+'</h3><div class="sub">Top Sports traders, all-time and this year</div>'+(C.length?C.map(function(c){
  return'<details class="card vet"><summary><div class="av">'+e(c.n.slice(0,2).toUpperCase())+'</div><div style="flex:1;min-width:0"><div class="vn">'+e(c.n)+'</div><div class="vr">'+e(c.rec)+'</div></div><span class="tag">'+(c.p||[]).length+' open</span></summary><div class="sg">'+(c.st||[]).map(function(s){return'<div>'+e(s[0])+'<em>'+e(s[1])+'</em></div>'}).join("")+'</div><div class="gm" style="font-size:14px">'+e(c.sub)+'</div>'+((c.p||[]).length?c.p.map(function(p){return'<div class="mp"><div style="display:flex;justify-content:space-between;gap:10px"><b style="overflow-wrap:anywhere">'+e(p[3])+'</b><b>'+$(p[5])+'</b></div><div class="gm" style="font-size:14px">'+e(p[4])+'</div></div>'}).join(""):'<div class="mp gm">No fresh buys right now.</div>')+'</details>'}).join(""):'<div class="card empty"><b>No veterans yet</b>Run a scan to load the leaderboard.</div>')}
 function info(){return'<h3>How it runs</h3><div class="sub">Everything runs on GitHub. Nothing needs your phone or Claude open.</div><div class="card"><div class="row"><span>Automatic scans</span><span>4 times a day</span></div><div class="row"><span>Times (Pacific)</span><span>9:03 · 11:33 · 2:33 · 5:33</span></div><div class="row"><span>Scan button</span><span>Anytime</span></div><div class="row"><span>Two-sided bets</span><span>Hidden</span></div><div class="row"><span>Data</span><span>'+(live?"Live":"Sample")+'</span></div></div><div class="card" style="margin-top:12px"><b>First-time setup</b><ul style="padding-left:20px"><li>Add one secret in GitHub: APIFY_TOKEN.</li><li>Open Actions and run “veterans-scan” once.</li><li>Tap Scan here and paste a token when asked.</li></ul></div>'}
 function draw(){var f=flat(),fr=f.filter(function(x){return x.p[7]}).length,top=f.reduce(function(m,x){return Math.max(m,x.p[5])},0);
- s1.textContent=C.length;s2.textContent=fr;s3.textContent=f.length;s4.textContent=top?$(top):"—";
+ s1.textContent=C.length;s2.textContent=fr;s3.textContent=f.length;s4.textContent=(REC&&(REC.w+REC.l))?REC.w+"–"+REC.l:"—";document.getElementById("s4l").textContent=(REC&&(REC.w+REC.l))?"Record":"Record · building";document.getElementById("dt").textContent=new Date().toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"});
  live_.textContent=live?"Live · tap to scan":"Sample · tap to scan";
- main.innerHTML=S.t=="picks"?picks():S.t=="vets"?vets():info();pills()}
+ main.innerHTML=S.t=="picks"?picks():S.t=="vets"?vets():info();pills();side()}
+function nextScan(){var p=ptNow(),m=(+p.hour%24)*60+(+p.minute),T=[[9,3],[11,33],[14,33],[17,33]],lab=["9:03 AM","11:33 AM","2:33 PM","5:33 PM"];for(var i=0;i<T.length;i++)if(T[i][0]*60+T[i][1]>m)return lab[i]+" PT";return lab[0]+" PT tomorrow"}
+function side(){var f=flat(),rec=REC&&(REC.w+REC.l)?REC:null,H=(HIST||[]).slice(-10).reverse();
+ document.getElementById("side").innerHTML='<div class="sd"><h4>Data sources</h4><div class="r"><span>Kalshi markets</span><b>Public</b></div><div class="r"><span>Trades</span><b>Public tape</b></div><div class="r"><span>Leaderboards</span><b>Top 50 · all-time + year</b></div><div class="r"><span>Hedges</span><b>Hidden</b></div></div>'
+ +'<div class="sd"><h4>Scan status</h4><div class="r"><span>Data</span><b>'+(live?"Live":"Sample")+'</b></div><div class="r"><span>Last scan</span><b class="w">'+e(lastScan||"—")+'</b></div><div class="r"><span>Next scan</span><b class="w">'+e(nextScan())+'</b></div><div class="r"><span>Veterans</span><b>'+C.length+'</b></div><div class="r"><span>Open picks</span><b>'+f.length+'</b></div><div class="r"><span>Tracked record</span><b>'+(rec?rec.w+"–"+rec.l+" · "+Math.round(100*rec.w/(rec.w+rec.l))+"%":"Building")+'</b></div>'+(rec?'<small>'+(rec.w+rec.l)+' graded picks. Each shown pick is graded once Kalshi settles it.</small>':'<small>Every pick shown is tracked and graded once Kalshi settles it.</small>')+'</div>'
+ +'<div class="sd"><h4>Scan history</h4>'+(H.length?H.map(function(h){return'<div class="r"><span>'+e(h.t)+'</span><b>'+h.picks+' picks</b></div>'}).join(""):'<small>History starts with the next scan.</small>')+'</div>'}
+var lastScan="";
 var pills_=document.getElementById("pills"),live_=document.getElementById("live");
 pills_.onclick=function(ev){var b=ev.target.closest("button");if(b){S.t=b.dataset.t;draw()}};
-main.onclick=function(ev){var c=ev.target.closest(".cp");if(c){cpy(c.dataset.cp);return}var b=ev.target.closest(".fc");if(!b)return;if(b.dataset.sport!=null)S.sport=b.dataset.sport;else if(b.dataset.min!=null)S.min=+b.dataset.min;else S.fresh=!S.fresh;draw()};
+main.onclick=function(ev){var c=ev.target.closest(".cp");if(c){cpy(c.dataset.cp);return}var b=ev.target.closest(".fc");if(!b)return;if(b.dataset.sport!=null)S.sport=b.dataset.sport;else if(b.dataset.when!=null)S.when=b.dataset.when;else if(b.dataset.min!=null)S.min=+b.dataset.min;else S.fresh=!S.fresh;draw()};
+main.oninput=function(ev){if(ev.target.id==="q"){S.q=ev.target.value;var pl=document.getElementById("plist");if(pl)pl.innerHTML=plist()}};
 function toast(m){var d=document.createElement("div");d.className="toast";d.textContent=m;document.body.appendChild(d);setTimeout(function(){d.remove()},3500)}
 function load(cb){fetch("veterans-data.json?t="+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){
- if(d&&Array.isArray(d.cappers)){C=d.cappers;live=true;if(d.ts&&(Date.now()/1000-d.ts)>8*3600){toast("Data is over 8 hours old. Tap Scan.")}if(d.scanned){scanned.textContent="Scanned "+d.scanned+" · Refreshed "+new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});jour.textContent="Live data · last scan "+d.scanned}}}).catch(function(){}).then(function(){draw();if(cb)cb()})}
+ if(d&&Array.isArray(d.cappers)){C=d.cappers;live=true;REC=d.record||null;HIST=d.history||[];if(d.ts&&(Date.now()/1000-d.ts)>8*3600){toast("Data is over 8 hours old. Tap Scan.")}if(d.scanned){lastScan=d.scanned;scanned.textContent="Scanned "+d.scanned+" · Refreshed "+new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});jour.textContent="Live data · last scan "+d.scanned}}}).catch(function(){}).then(function(){draw();if(cb)cb()})}
 function go(t){var b=scan;b.disabled=true;b.textContent="Starting…";var H={Authorization:"Bearer "+t,Accept:"application/vnd.github+json"};
  fetch("https://api.github.com/repos/"+REPO,{headers:H}).then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(d){
   return fetch("https://api.github.com/repos/"+REPO+"/actions/workflows/"+WF+"/dispatches",{method:"POST",headers:H,body:JSON.stringify({ref:d.default_branch})})}).then(function(r){

@@ -266,6 +266,52 @@ def t_side(side):
     return side or "BUY"
 
 
+def game_iso(ticker):
+    """Game time as a UTC ISO string (for Live/Upcoming filters). '' if unknown."""
+    m = MKT.get(ticker) or {}
+    for k in ("occurrence_datetime", "expected_expiration_time", "close_time"):
+        v = m.get(k)
+        if v:
+            try:
+                return datetime.fromisoformat(str(v).replace("Z", "+00:00")).astimezone(timezone.utc).isoformat()
+            except Exception:
+                continue
+    return ""
+
+
+def market_result(ticker):
+    """'yes' / 'no' once Kalshi has settled the market, else None."""
+    try:
+        req = urllib.request.Request(f"https://api.elections.kalshi.com/trade-api/v2/markets/{ticker}",
+                                     headers={"User-Agent": "kalshi-scanner/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            m = json.loads(r.read().decode()).get("market", {})
+        res = str(m.get("result") or "").lower()
+        return res if res in ("yes", "no") else None
+    except Exception:
+        return None
+
+
+def grade_tracked(state):
+    """Check settled markets for picks we showed and keep a running win/loss record."""
+    track = state.setdefault("track", {})
+    rec = state.setdefault("record", {"w": 0, "l": 0})
+    checked = 0
+    for k, v in list(track.items()):
+        if v.get("done") or checked >= 40:
+            continue
+        if time.time() - v.get("ts", 0) < 3600:
+            continue
+        checked += 1
+        res = market_result(v.get("tk"))
+        if res:
+            v["done"] = True
+            rec["w" if res == v.get("sd") else "l"] += 1
+    for k in [k for k, v in track.items() if v.get("done") and time.time() - v.get("ts", 0) > 14 * 86400]:
+        del track[k]
+    return rec
+
+
 def current_price(ticker, side):
     """Live price of the side they bought, from Kalshi's public market endpoint. None if unknown."""
     if not ticker:
@@ -357,7 +403,14 @@ def main():
             age = now - g["ts"]
             picks.append([sport_of(t["ticker"]), "Position", game_when(t["ticker"]), t["title"],
                           pick_label(t["ticker"], t["side"], entry, cur),
-                          round(g["usd"]), round(1 / entry, 1) if entry else 0, ago(age)])
+                          round(g["usd"]), round(1 / entry, 1) if entry else 0, ago(age), game_iso(t["ticker"])])
+            try:
+                sd = "no" if str(t["side"]).upper() == "NO" else "yes"
+                key = f"{t['ticker']}|{sd}"
+                if t["ticker"] and key not in state.setdefault("track", {}):
+                    state["track"][key] = {"tk": t["ticker"], "sd": sd, "ts": int(now), "px": round(entry, 3)}
+            except Exception:
+                pass
             new_ids = [i for i in g["ids"] if i not in seen]
             if new_ids and not first:
                 notify(f"[KALSHI] Veteran {nick}: BUY {money(g['usd'])}",
@@ -381,8 +434,24 @@ def main():
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
     stamp = datetime.now(timezone.utc).astimezone(ZoneInfo("America/Los_Angeles")).strftime("%a %b %-d · %-I:%M %p PT")
+    try:
+        record = grade_tracked(state)
+    except Exception:
+        record = {"w": 0, "l": 0}
+    n_picks = sum(len(c["p"]) for c in cappers)
+    hist = []
+    try:
+        with open(OUT_FILE) as f:
+            hist = json.load(f).get("history", [])
+    except Exception:
+        hist = []
+    hist.append({"t": stamp, "ts": int(now), "picks": n_picks, "vets": len(vets)})
+    hist = hist[-48:]
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
     with open(OUT_FILE, "w") as f:
-        json.dump({"scanned": stamp, "ts": int(now), "cappers": cappers}, f)
+        json.dump({"scanned": stamp, "ts": int(now), "cappers": cappers, "record": record,
+                   "history": hist, "stats": {"vets": len(vets), "top_n": TOP_N}}, f)
     print(f"Done. {len(vets)} veterans, {sum(len(c['p']) for c in cappers)} fresh picks, {sent} alerts sent."
           + (" (first run: state seeded)" if first else ""))
 
