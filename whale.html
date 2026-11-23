@@ -72,6 +72,38 @@ pre{background:#0B2540;color:#BFE6F5;border-radius:14px;padding:12px;font-size:1
 .fc{padding:6px 12px;min-height:36px;font-size:14px}
 .fc{padding:5px 11px;min-height:34px;font-size:13.5px}
 .tag.sc{font-weight:900}.tag.sA{background:var(--goodbg);color:var(--good)}.tag.sB{background:#FEF9C3;color:#854D0E}.tag.sC{background:#E5E7EB;color:#4B5563}
+
+/* ===== desktop: wide dashboard layout ===== */
+@media (min-width:980px){
+body{background:#E8F1F9}
+.col{max-width:1440px;background:transparent;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px 32px 48px}
+.in{display:contents}
+.in>h1,.in>p.sub{display:none}
+.hero{order:1;display:grid;grid-template-columns:1fr auto;column-gap:24px;align-items:center;border-radius:28px;padding:28px 32px;background:radial-gradient(900px 300px at 100% 100%,#1E3A8A 0%,transparent 60%),linear-gradient(135deg,#07101F,#0B1F3A);box-shadow:0 20px 50px rgba(7,16,31,.25)}
+.hero small{grid-column:1;color:#7DD3FC}
+.hero h2{grid-column:1;font-size:40px;letter-spacing:-1px;margin:6px 0 4px}
+.hero #status{grid-column:1;color:#9FB6D3;font-size:16px}
+.hero .hb{grid-column:2;grid-row:1/4;display:flex;gap:12px;margin:0}
+.hero .hb button{min-width:150px;font-size:18px;min-height:52px;padding:12px 22px}
+.hero .hb button.p{background:#7DD3FC;border-color:#7DD3FC;color:#07101F}
+.hero .st{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:22px}
+.hero .st div{background:#0F2142;border:1px solid #1D3560;border-radius:20px;padding:18px 22px;text-align:left}
+.hero .st b{font-size:36px;letter-spacing:-.5px}
+.hero .st span{font-size:12px;letter-spacing:.08em;color:#8FB4E0;margin-top:4px}
+.tabs{order:2;position:static;border:0;border-radius:22px;background:#0B1F3A;padding:10px 12px;gap:6px;backdrop-filter:none}
+.pill{background:transparent;border:0;color:#B7CBE6;font-size:16px;padding:10px 22px}
+.pill:hover{background:#13305A}
+.pill.on{background:#2563EB;color:#fff}
+#main{order:3;display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:0 18px;align-items:start}
+#main>*{grid-column:1/-1}
+#main>.card:not(.empty){grid-column:auto}
+#main>.card:has(pre){grid-column:1/-1}
+.card{margin:8px 0;padding:20px 22px;border-radius:22px;box-shadow:0 6px 18px rgba(30,58,95,.08)}
+.ttl{font-size:23px}
+.fl{padding:6px 0}
+.fc{font-size:14.5px;padding:7px 16px;min-height:38px}
+}
+@media (min-width:1500px){.col{max-width:1680px}#main{grid-template-columns:repeat(auto-fill,minmax(500px,1fr))}}
 </style>
 </head>
 <body>
