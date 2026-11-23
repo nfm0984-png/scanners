@@ -27,12 +27,8 @@ a.card span{opacity:.95}
 </style>
 </head>
 <body><div class="col">
-<h1>Scanners</h1><p>Sports whale tracking for Polymarket and Kalshi.</p>
+<h1>Scanners</h1><p>Sports whale tracking for Polymarket.</p>
 <a class="card" href="whale.html"><small>POLYMARKET · LIVE</small><b>Whale Scanner</b><span>Big-money trades from Orca, hedges hidden. Runs in your browser with your own key.</span><br><span class="go">Open</span></a>
-<a class="card" href="veterans.html"><small>KALSHI · 4 SCANS A DAY</small><b>Veteran Picks</b><span>Fresh buys from top Sports leaderboard veterans, with a Scan button.</span><br><span class="go">Open</span></a>
-<p id="vs" style="font-size:14px;margin-top:6px"></p>
 <p style="font-size:13.5px">Tip: on iPhone, tap Share, then <b>Add to Home Screen</b> to open this like an app.</p>
 </div>
-<script>
-fetch("veterans-data.json?t="+Date.now()).then(function(r){return r.json()}).then(function(d){var el=document.getElementById("vs"),n=(d.cappers||[]).reduce(function(c,x){return c+(x.p||[]).length},0);el.textContent="Veterans: "+n+" open picks"+(d.scanned?" · last scan "+d.scanned:"")}).catch(function(){});
-</script></body></html>
+</body></html>
