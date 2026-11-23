@@ -22,9 +22,8 @@ def get(url, headers=None, tries=3):
     last = None
     for i in range(tries):
         try:
-            req = urllib.request.Request(url, headers=dict({"Accept": "application/json",
-                                                           "User-Agent": UA, "Origin": "https://polymarket.com", "Referer": "https://polymarket.com/",
-                                                           "Accept-Language": "en-US,en;q=0.9"}, **(headers or {})))
+            req = urllib.request.Request(url, headers=dict({"Accept": "application/json", "User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"},
+                                                 **({"Origin": "https://polymarket.com", "Referer": "https://polymarket.com/"} if "polymarket" in url else {}), **(headers or {})))
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
@@ -214,6 +213,9 @@ def wallets_data(wallets):
     return pos, closed
 
 
+ERR = [""]
+
+
 def kalshi_combos():
     meta, trades = {}, []
     try:
@@ -222,15 +224,15 @@ def kalshi_combos():
             meta[m["ticker"]] = {"yes_sub_title": m.get("yes_sub_title"), "title": m.get("title"),
                                  "mve_selected_legs": m.get("mve_selected_legs") or []}
     except Exception as e:
-        print("kalshi markets fail", e, file=sys.stderr)
+        print("kalshi markets fail", e, file=sys.stderr); ERR[0] += "markets: " + str(e)[:120] + " "
     cursor, pages = "", 0
-    since = int(time.time()) - 86400
-    while pages < 8:
+    since = int(time.time()) - 3 * 3600
+    while pages < 30:
         q = f"{KALSHI}/markets/trades?limit=1000&min_ts={since}" + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else "")
         try:
             j = get(q)
         except Exception as e:
-            print("kalshi trades fail", e, file=sys.stderr)
+            print("kalshi trades fail", e, file=sys.stderr); ERR[0] += "trades: " + str(e)[:120] + " "
             break
         trades += j.get("trades", [])
         pages += 1
@@ -279,7 +281,7 @@ def kalshi_combos():
             print("kalshi market fail", tk, e, file=sys.stderr)
     keep = {x["tk"] for x in big}
     return {"rows": big, "meta": {k: v for k, v in meta.items() if k in keep},
-            "seen": len(trades), "combo": combo}
+            "seen": len(trades), "combo": combo, "pages": pages, "mkts": len(meta), "err": ERR[0]}
 
 
 def probe(wallet):
