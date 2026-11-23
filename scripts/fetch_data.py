@@ -171,6 +171,44 @@ def kalshi_combos():
             "seen": len(trades), "combo": combo}
 
 
+def probe(wallet):
+    """Record what each data source returns for one wallet so problems are visible in data/debug.json."""
+    tests = []
+    key = os.environ.get("ORCA_KEY", "")
+
+    def rec(name, fn):
+        try:
+            code, body = fn()
+            tests.append({"name": name, "status": code, "len": len(body), "snippet": body[:400]})
+        except urllib.error.HTTPError as e:
+            try:
+                b = e.read().decode("utf-8", "replace")[:300]
+            except Exception:
+                b = ""
+            tests.append({"name": name, "status": e.code, "snippet": b})
+        except Exception as e:
+            tests.append({"name": name, "error": str(e)[:200]})
+
+    def req(url, method="GET", body=None, headers=None):
+        data = json.dumps(body).encode() if body is not None else None
+        h = {"Accept": "application/json", "User-Agent": "Mozilla/5.0 (whale-scanner-data)"}
+        if data:
+            h["Content-Type"] = "application/json"
+        h.update(headers or {})
+        r = urllib.request.urlopen(urllib.request.Request(url, data=data, method=method, headers=h), timeout=30)
+        return r.status, r.read().decode("utf-8", "replace")
+
+    rec("polymarket positions", lambda: req(f"{DATA_API}/positions?user={wallet}&limit=2"))
+    rec("polymarket closed", lambda: req(f"{DATA_API}/closed-positions?user={wallet}&limit=2"))
+    rec("orca wallet GET", lambda: req(f"{ORCA}/api/v2/wallet/{wallet}"))
+    for field in ("wallets", "addresses", "wallet", "wallet_addresses"):
+        body = {field: [wallet] if field != "wallet" else wallet}
+        rec("orca positions POST " + field, lambda b=body: req(f"{ORCA}/api/public/v1/wallets/positions", "POST", b))
+        if key:
+            rec("orca positions POST+key " + field, lambda b=body: req(f"{ORCA}/api/public/v1/wallets/positions", "POST", b, {"X-API-Key": key}))
+    return tests
+
+
 def dump(name, obj):
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, name), "w") as f:
@@ -184,6 +222,10 @@ def main():
     if lb:
         dump("leaderboard.json", lb)
         wallets = [wallet_of(r) for r in lb[:TOP]]
+        try:
+            dump("debug.json", {"t": t, "wallet": wallets[0], "tests": probe(wallets[0])})
+        except Exception as e:
+            print("probe fail", e, file=sys.stderr)
         pos, closed = wallets_data(wallets)
         print("positions:", len(pos), "closed:", len(closed))
         dump("positions.json", pos)

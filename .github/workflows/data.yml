@@ -17,6 +17,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: python scripts/fetch_data.py
+        env:
+          ORCA_KEY: ${{ secrets.ORCA_KEY }}
       - name: Commit data
         run: |
           git config user.name "scanner-data-bot"
