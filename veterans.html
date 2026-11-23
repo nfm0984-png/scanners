@@ -86,6 +86,19 @@ dialog input{width:100%;border:1.5px solid var(--line);border-radius:12px;paddin
 .kp{display:block;margin-top:10px;padding:10px 16px;border-radius:999px;background:linear-gradient(135deg,#E3F1F8,#CCFBF1);color:#12394F;font-weight:800;font-size:14px;line-height:1.35;overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
 .pk .pt{font-size:12.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;color:var(--pur2)}.pk .ttl{font-size:20px;margin-top:4px}.pb{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}.pn{font-weight:800;font-size:15.5px;color:var(--ink);overflow-wrap:anywhere}.sd{flex:none;border-radius:999px;padding:5px 14px;font-weight:900;font-size:14px}.sd.yes{background:var(--goodbg);color:var(--good)}.sd.no{background:#FEE2E2;color:#B91C1C}.acts{display:flex;gap:8px;margin-top:12px}.bt{flex:1;text-align:center;text-decoration:none;border:0;border-radius:14px;padding:11px 8px;font-weight:850;font-size:14.5px;background:var(--pur2);color:#fff;cursor:pointer}.bt.l{background:#E3F1F8;color:#1E3A5F}
 .dd .ds{font-weight:850;color:#1E3A5F}
+/* compact phone layout: picks visible without scrolling */
+.hero{padding:14px 14px 12px;border-radius:22px}
+.hero h2{font-size:21px;margin:6px 0 2px}
+.hero p,.hero .sub2{font-size:13.5px}
+.hb,.hbtn{gap:8px;margin:10px 0}
+.hb button,.hbtn button{min-height:46px;padding:10px 8px;font-size:16px;border-radius:14px}
+.st{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.st div{padding:8px 6px;border-radius:12px;text-align:center}
+.st b{font-size:19px}
+.st span{font-size:9.5px;letter-spacing:.03em;display:block;margin-top:2px}
+.chips{margin-top:10px;gap:6px}.chip{padding:5px 10px;font-size:12px}
+.fl{flex-wrap:wrap;overflow:visible;gap:6px;padding:10px 0 2px}
+.fc{padding:6px 12px;min-height:36px;font-size:14px}
 </style>
 </head>
 <body>
@@ -98,8 +111,7 @@ dialog input{width:100%;border:1.5px solid var(--line);border-radius:12px;paddin
 
   <div class="hero">
     <div class="ey"><b>KALSHI · VETERAN SIGNALS</b><span class="live" id="live">Sample · tap to scan</span></div>
-    <h2>Follow conviction. Verify everything.</h2>
-    <p>Top Sports leaderboard veterans · fresh buys only</p>
+    
     <p id="scanned">Waiting for the first scan</p>
     <div class="hbtn"><button class="p" id="scan">⚡ Scan</button><button id="refresh">↻ Refresh</button></div>
     <div class="st">
