@@ -2,7 +2,7 @@
   "name": "Scanners",
   "short_name": "Scanners",
   "description": "Sports whale tracking for Polymarket and Kalshi.",
-  "start_url": "./index.html",
+  "start_url": "./whale.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0B2540",
