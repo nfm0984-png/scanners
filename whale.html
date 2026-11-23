@@ -79,7 +79,7 @@ pre{background:#0B2540;color:#BFE6F5;border-radius:14px;padding:12px;font-size:1
 <div class="tabs" id="tabs">
   <button class="pill on" data-t="feed">Whale feed</button>
   <button class="pill" data-t="board">Leaderboard</button>
-  <button class="pill" data-t="caps">Cappers</button><button class="pill" data-t="combo">Combos</button><button class="pill" data-t="risk">Risky</button>
+  <button class="pill" data-t="caps">Cappers</button><button class="pill" data-t="risk">Risky + Combos</button>
   <button class="pill" data-t="set">Settings</button>
 </div>
 <div class="in">
@@ -228,25 +228,16 @@ function rvHtml(r){return'<div class="dd" style="display:block"><div class="ds">
 function combos(R){var C=R.filter(function(x){return x.score>=50&&x.px>=0.4&&x.px<=0.85}).sort(function(p,q){return q.score-p.score}),used={},legs=[];C.forEach(function(x){var k=gkey(x.a);if(used[k])return;used[k]=1;legs.push(x)});
  var out=[];if(legs.length>=2)out.push({n:"2-pick combo",L:legs.slice(0,2)});if(legs.length>=3)out.push({n:"3-pick combo",L:legs.slice(0,3)});if(legs.length>=4)out.push({n:"Big 4-pick combo",L:legs.slice(0,4)});return out}
 function topRows(R){var G={};goodCaps().forEach(function(c){var f=S.cf[c.w],t=trustOf(c,f);if(c.pnl>0&&t.l!=="Cold"&&!(f&&f.n>=5&&f.pnl<0))G[c.w]=1});var out=[];R.forEach(function(x){var ms=x.ms.filter(function(m){return G[(m.a.wallet||"").toLowerCase()]});if(!ms.length)return;var y={};for(var k in x)y[k]=x[k];y.ms=ms;y.usd=ms.reduce(function(t,m){return t+m.usd},0);out.push(y)});return out}
-function comboTab(){var R=S.rows||[],h='<div class="sub">Combos built <b>only</b> from cappers that make money: profitable on the leaderboard (Trusted or Solid), not cold lately, and not losing over their recent settled bets. Random wallets are left out.</div>';
+function risky(){var R=S.rows||[],h='<div class="sub">Higher-risk, higher-payout picks, from cappers that make money only: profitable on the leaderboard, not cold lately, not losing over their recent settled bets. Reviews are auto-written by the scanner. They are a guide, not a guarantee.</div>';
  if(!S.pool.length){loadPool();return h+'<div class="card empty"><b>Loading the leaderboard…</b>Then tap Scan on the Whale feed.</div>'}
  if(!R.length)return h+'<div class="card empty"><b>No picks loaded</b>Go to Whale feed and tap Scan first.</div>';
- var T=topRows(R),CB=combos(T);h+='<div class="sub" style="margin:6px 2px"><b>'+T.length+' picks</b> from top cappers right now (of '+R.length+' total) · '+goodCaps().length+' top cappers tracked</div>';
- if(!CB.length)return h+'<div class="card empty"><b>Not enough top-capper games yet</b>Combos need 2+ different games from top cappers. Try Last 3h or 12h on the feed.</div>';
- return h+CB.map(function(c){var mult=c.L.reduce(function(t,x){return t*(1/x.px)},1),pr=c.L.reduce(function(t,x){return t*x.px},1),sc=Math.round(c.L.reduce(function(t,x){return t+x.score},0)/c.L.length),worst=c.L.some(function(x){return x.ms.length<2}),rv=c.L.length>=4?"Pass or tiny stake":pr<0.15?"Small stake only":worst?"Lean small":"Worth a look";
-  return'<div class="card"><div class="meta"><span>'+e(c.n)+'</span><span>All must win</span></div><div class="tags"><span class="tag g">Pays '+(Math.round(mult*10)/10)+'x</span><span class="tag d">Hits ~'+Math.round(pr*100)+'% of the time</span><span class="tag sc s'+grade(sc)+'">Avg '+sc+' · '+grade(sc)+'</span></div>'+c.L.map(function(x,i){var rv2=rview(x);return'<div class="dr"><b>'+(i+1)+'. '+e(x.a.sp.e+" "+tv(x.a))+'</b><span>'+e(x.lab)+' · '+mx(x.px)+'</span><small>'+x.ms.length+' top capper'+(x.ms.length>1?"s":"")+' · '+$(x.usd)+(rv2.t?" · "+e(rv2.t):"")+'</small><div style="width:100%">'+capLine(x)+'</div></div>'}).join("")+'<div class="dd" style="display:block"><div class="ds">Review · '+rv+'</div><div class="gm" style="font-size:14px">Every leg has to win, so one miss loses the whole combo. Hit chance is the legs\' prices multiplied, before fees. Real hit rate is often lower.</div></div></div>'}).join("")}
-function risky(){var R=S.rows||[],h='<div class="sub">Higher-risk, higher-payout picks. Every pick gets a written review. Reviews are auto-written by the scanner from the cappers, grade, price and timing. They are a guide, not a guarantee.</div>';
- if(!R.length)return h+'<div class="card empty"><b>No picks loaded</b>Go to Whale feed and tap Scan first.</div>';
- var CB=[];h+='';
- if(!CB.length)h+='<div class="card empty"><b>Not enough separate games yet</b>Combos need 2+ different games from good cappers. Try Last 3h or 12h.</div>';
- CB.forEach(function(c){var mult=c.L.reduce(function(t,x){return t*(1/x.px)},1),pr=c.L.reduce(function(t,x){return t*x.px},1),sc=Math.round(c.L.reduce(function(t,x){return t+x.score},0)/c.L.length),worst=c.L.some(function(x){return x.ms.length<2});
-  var rv=c.L.length>=4?"Pass or tiny stake":pr<0.15?"Small stake only":worst?"Lean small":"Worth a look";
-  h+='<div class="card"><div class="meta"><span>'+e(c.n)+'</span><span>All must win</span></div><div class="tags"><span class="tag g">Pays '+(Math.round(mult*10)/10)+'x</span><span class="tag d">Hits ~'+Math.round(pr*100)+'% of the time</span><span class="tag sc s'+grade(sc)+'">Avg '+sc+' · '+grade(sc)+'</span></div>'
-   +c.L.map(function(x,i){var rv2=rview(x);return'<div class="dr"><b>'+(i+1)+'. '+e(x.a.sp.e+" "+tv(x.a))+'</b><span>'+e(x.lab)+' · '+mx(x.px)+'</span><small>'+x.ms.length+' capper'+(x.ms.length>1?"s":"")+' · '+$(x.usd)+(rv2.t?" · "+e(rv2.t):"")+'</small><div style="width:100%">'+capLine(x)+'</div></div>'}).join("")
-   +'<div class="dd" style="display:block"><div class="ds">Review · '+rv+'</div><div class="gm" style="font-size:14px">Every leg has to win, so one miss loses the whole combo. Chance of hitting is the legs\' prices multiplied together, before the market\'s fee. Real hit rate is often lower.</div></div></div>'});
- var LS=R.filter(function(x){return x.px<0.34&&x.px>0.05}).sort(function(p,q){return q.score-p.score||q.usd-p.usd}).slice(0,15);
+ var T=topRows(R),CB=combos(T);h+='<div class="sub" style="margin:6px 2px"><b>'+T.length+' picks</b> from profitable cappers right now (of '+R.length+' total)</div><h3 style="margin:14px 2px 6px">🎰 Combo picks</h3>';
+ if(!CB.length)h+='<div class="card empty"><b>Not enough games yet</b>Combos need 2+ different games from profitable cappers. Try Last 3h or 12h on the feed.</div>';
+ h+=CB.map(function(c){var mult=c.L.reduce(function(t,x){return t*(1/x.px)},1),pr=c.L.reduce(function(t,x){return t*x.px},1),sc=Math.round(c.L.reduce(function(t,x){return t+x.score},0)/c.L.length),worst=c.L.some(function(x){return x.ms.length<2}),rv=c.L.length>=4?"Pass or tiny stake":pr<0.15?"Small stake only":worst?"Lean small":"Worth a look";
+  return'<div class="card"><div class="meta"><span>'+e(c.n)+'</span><span>All must win</span></div><div class="tags"><span class="tag g">Pays '+(Math.round(mult*10)/10)+'x</span><span class="tag d">Hits ~'+Math.round(pr*100)+'% of the time</span><span class="tag sc s'+grade(sc)+'">Avg '+sc+' · '+grade(sc)+'</span></div>'+c.L.map(function(x,i){var rv2=rview(x);return'<div class="dr"><b>'+(i+1)+'. '+e(x.a.sp.e+" "+tv(x.a))+'</b><span>'+e(x.lab)+' · '+mx(x.px)+'</span><small>'+x.ms.length+' capper'+(x.ms.length>1?"s":"")+' · '+$(x.usd)+(rv2.t?" · "+e(rv2.t):"")+'</small><div style="width:100%">'+capLine(x)+'</div></div>'}).join("")+'<div class="dd" style="display:block"><div class="ds">Review · '+rv+'</div><div class="gm" style="font-size:14px">Every leg has to win, so one miss loses the whole combo. Hit chance is the legs\' prices multiplied, before fees. Real hit rate is often lower.</div></div></div>'}).join("");
+ var LS=T.filter(function(x){return x.px<0.34&&x.px>0.05}).sort(function(p,q){return q.score-p.score||q.usd-p.usd}).slice(0,15);
  h+='<h3 style="margin:18px 2px 6px">🚀 Long shots (pay 3x or more)</h3>';
- if(!LS.length)h+='<div class="card empty"><b>No long shots right now</b>None of the current picks pay 3x or more.</div>';
+ if(!LS.length)h+='<div class="card empty"><b>No long shots right now</b>None of the profitable cappers\' picks pay 3x or more.</div>';
  h+=LS.map(function(x,i){return rcard(x,i,(x.px<0.2?"Wild · ":"Risky · ")+"#"+(i+1))}).join("");return h}
 function board(){var h='<div class="sub">Public leaderboard. No key needed.</div><div class="fl" style="padding-top:0">'+[50,100,200].map(function(n){return fc(n,"Top "+n,S.lim==n,"lim")}).join("")+'</div><div style="display:flex;gap:8px;margin:2px 0 8px"><input id="cl" type="number" min="1" max="1000" inputmode="numeric" placeholder="Custom number (1–1000)" value="'+([50,100,200].indexOf(S.lim)<0?S.lim:"")+'" style="flex:1"><button class="b1" id="cg" style="margin:0">Load</button></div>';
  if(S.boardErr)h+='<div class="err">'+e(S.boardErr)+'</div>';
@@ -331,7 +322,7 @@ function cappers(){return'<div class="sub">Every capper you can trust or track. 
 function fillCaps(){var el=document.getElementById("clist");if(el)el.innerHTML=clist()}
 function draw(){savePrefs();var R=S.rows,tot=R.reduce(function(m,x){return m+x.usd},0),top=R.reduce(function(m,x){return Math.max(m,x.usd)},0);
  s1.textContent=R.length;s2.textContent=tot?$(tot):"0";s3.textContent=S.hedged;s4.textContent=top?$(top):"—";
- main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="caps"?cappers():S.t==="combo"?comboTab():S.t==="risk"?risky():settings();
+ main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="caps"?cappers():S.t==="risk"||S.t==="combo"?risky():settings();
  [].forEach.call(tabs.children,function(b){b.className="pill"+(b.dataset.t===S.t?" on":"")});auto.textContent="Auto: "+(S.auto?"on":"off")}
 var main=document.getElementById("main"),tabs=document.getElementById("tabs"),statusEl=document.getElementById("status"),go=document.getElementById("go"),auto=document.getElementById("auto");
 var s1=document.getElementById("s1"),s2=document.getElementById("s2"),s3=document.getElementById("s3"),s4=document.getElementById("s4");
