@@ -112,7 +112,7 @@ function e(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"
 function $(n){n=+n||0;if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";if(n>=1000)return"$"+(n/1000).toFixed(1).replace(/\.0$/,"")+"k";return"$"+Math.round(n)}
 function cpy(t){function ok(){toast0("Copied")}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,fb)}else fb();function fb(){var x=document.createElement("textarea");x.value=t;x.style.position="fixed";x.style.opacity=0;document.body.appendChild(x);x.select();try{document.execCommand("copy");ok()}catch(_){toast0("Press and hold the text to copy")}x.remove()}}
 function toast0(m){var d=document.createElement("div");d.textContent=m;d.style.cssText="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#12233B;color:#fff;padding:10px 18px;border-radius:999px;font-weight:800;z-index:99";document.body.appendChild(d);setTimeout(function(){d.remove()},1600)}
-function teams(t){t=String(t||"").trim();var m=t.replace(/^(spread|moneyline|total|o\/u)\s*:\s*/i,"").replace(/^will\s+/i,"").replace(/\?+\s*$/,"");
+function teams(t){t=String(t||"").trim();var m=t.replace(/^(spread|moneyline|total|o\/u)\s*:\s*/i,"").replace(/^[^:]{2,40}:\s+(?=.+\s(?:vs\.?|v|@)\s)/i,"").replace(/^will\s+/i,"").replace(/\?+\s*$/,"");
  var r=/^(.+?)\s+(?:vs\.?|v\.?|@|beat|defeat|beats|defeats|win against|win vs\.?)\s+(.+?)(?:\s+(?:on|by|in|at|over|with|after|before)\s.*|\s*[:(\-–|].*)?$/i.exec(m);
  if(r)return (r[1].replace(/^the\s+/i,"")).replace(/\s+(win|to win)$/i,"").trim()+" vs "+r[2].replace(/^the\s+/i,"").replace(/\s+(win|to win)$/i,"").trim();
  m=m.replace(/\s+(win|to win)\b.*$/i,"").replace(/\s*[:(].*$/,"");return(m||t).replace(/(^|\svs\s)the\s+/gi,"$1")}
