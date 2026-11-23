@@ -145,7 +145,7 @@ def orca_positions(w):
         forms = [ORCA_FORM[0]] + [f for f in forms if f != ORCA_FORM[0]]
     last = None
     for f in forms:
-        for hdr in ([{"X-API-Key": key}] if key else []) + [{}]:
+        for hdr in ([{"Authorization": "Bearer " + key, "X-API-Key": key}] if key else []) + [{}]:
             try:
                 j = post(ORCA + "/api/public/v1/wallets/positions", {f: (w if f == "wallet" else [w])}, hdr)
             except Exception as e:
@@ -175,12 +175,31 @@ def orca_positions(w):
     raise last or RuntimeError("orca positions failed")
 
 
+def v2_rows(w, status, limit):
+    j = get(f"{DATA_API}/v2/positions?user={w}&status={status}&limit={limit}")
+    return rows_of(j)
+
+
+def from_v2(r):
+    """Convert a v2 (snake_case) row to the camelCase shape the page already reads."""
+    def g(*k):
+        for x in k:
+            if r.get(x) is not None:
+                return r.get(x)
+    ent = num(g("entry_cost_usdc", "total_cost_usdc"))
+    return {"title": g("title"), "outcome": g("outcome"), "avgPrice": num(g("avg_price")),
+            "curPrice": num(g("current_price")), "currentValue": num(g("current_value")),
+            "initialValue": ent, "cashPnl": num(g("unrealized_pnl", "total_pnl")),
+            "realizedPnl": num(g("realized_pnl", "total_pnl")), "endDate": g("end_date"),
+            "slug": g("slug"), "redeemable": bool(g("redeemable")),
+            "timestamp": g("last_event_at", "first_entry_at")}
+
+
 def wallets_data(wallets):
     pos, closed = {}, {}
     for i, w in enumerate(wallets):
         try:
-            pos[w] = slim(rows_of(get(f"{DATA_API}/positions?user={w}&sizeThreshold=1&limit=60"
-                                      "&sortBy=CURRENT&sortDirection=DESC")), POS_KEYS)
+            pos[w] = slim([from_v2(r) for r in v2_rows(w, "OPEN", 60)], POS_KEYS)
         except Exception as e:
             print("positions fail", w, e, file=sys.stderr)
             try:
@@ -188,7 +207,7 @@ def wallets_data(wallets):
             except Exception as e2:
                 print("orca positions fail", w, e2, file=sys.stderr)
         try:
-            closed[w] = slim(rows_of(get(f"{DATA_API}/closed-positions?user={w}&limit=50")), CLOSED_KEYS)
+            closed[w] = slim([from_v2(r) for r in v2_rows(w, "CLOSED", 50)], CLOSED_KEYS)
         except Exception as e:
             print("closed fail", w, e, file=sys.stderr)
         time.sleep(0.25)
@@ -290,8 +309,8 @@ def probe(wallet):
         r = urllib.request.urlopen(urllib.request.Request(url, data=data, method=method, headers=h), timeout=30)
         return r.status, r.read().decode("utf-8", "replace")
 
-    rec("polymarket positions", lambda: req(f"{DATA_API}/positions?user={wallet}&limit=2"))
-    rec("polymarket closed", lambda: req(f"{DATA_API}/closed-positions?user={wallet}&limit=2"))
+    rec("polymarket positions", lambda: req(f"{DATA_API}/v2/positions?user={wallet}&limit=2"))
+    rec("polymarket closed", lambda: req(f"{DATA_API}/v2/positions?user={wallet}&status=CLOSED&limit=2"))
     rec("orca wallet GET", lambda: req(f"{ORCA}/api/v2/wallet/{wallet}"))
     for field in ("wallets", "addresses", "wallet", "wallet_addresses"):
         body = {field: [wallet] if field != "wallet" else wallet}
