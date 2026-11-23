@@ -79,7 +79,7 @@ pre{background:#0B2540;color:#BFE6F5;border-radius:14px;padding:12px;font-size:1
 <div class="tabs" id="tabs">
   <button class="pill on" data-t="feed">Whale feed</button>
   <button class="pill" data-t="board">Leaderboard</button>
-  <button class="pill" data-t="caps">Cappers</button>
+  <button class="pill" data-t="caps">Cappers</button><button class="pill" data-t="risk">Risky</button>
   <button class="pill" data-t="set">Settings</button>
 </div>
 <div class="in">
@@ -211,6 +211,34 @@ function qok(x){var px=x.px;return x.score>=72&&x.ms.length>=2&&px>=1/3&&px<=0.7
    var rec=(W+L)?W+"W-"+L+"L":(wrs.length?"avg WR "+Math.round(wrs.reduce(function(p,q){return p+q},0)/wrs.length)+"%":"");
    return'<div class="gm" style="margin-top:10px;font-weight:800">'+(ms.length>1?ms.length+" cappers agree · "+$(x.usd)+" combined":"Capper")+(rec?" · "+rec:"")+(pn?" · P&L "+$(pn):"")+'</div>'+ms.map(function(m){var a=m.a,multi=x.mk.length>1||m.parts.length>1;return'<div class="dr"><b>'+capName(a)+'</b><span>'+$(m.usd)+' @ '+mx(m.px)+'</span><small>'+(multi?m.parts.map(function(q){return e(q.lab)+" "+$(q.usd)+" @ "+mx(q.px)}).join(" · ")+"<br>":"")+((a.wins+a.losses)?a.wins+"W-"+a.losses+"L · ":"")+(a.wr?"WR "+Math.round(a.wr)+"% · ":"")+(a.pnl?"Total P&L "+$(a.pnl):"P&L n/a")+'</small>'+capForm(a)+'</div>'}).join("")})()+'</div></div>';});
  return h}
+function rview(x){var a=x.a,tm=a.gt?new Date(a.gt).toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"",started=a.gt&&new Date(a.gt)<new Date();return{t:tm,started:started}}
+function review(x){var pro=[],con=[],n=x.ms.length,px=x.px,cold=0;
+ x.ms.forEach(function(m){var f=S.cf[(m.a.wallet||"").toLowerCase()];if(f&&f.n>=10&&f.w/f.n<0.45)cold++});
+ if(n>=3)pro.push(n+" cappers agree");else if(n===2)pro.push("2 cappers agree");else con.push("only 1 capper");
+ if(x.score>=72)pro.push("A-grade");else if(x.score<58)con.push("low grade ("+x.score+")");
+ if(x.usd>=5000)pro.push($(x.usd)+" behind it");else if(x.usd<1000)con.push("small money ("+$(x.usd)+")");
+ if(cold)con.push(cold+" capper"+(cold>1?"s":"")+" cold lately");
+ if(px<0.2)con.push("very long shot: wins about "+Math.round(px*100)+"% of the time");else if(px<0.34)con.push("underdog price, loses most of the time");
+ var rv=rview(x);if(rv.started)con.push("game may already be underway");
+ var v=con.length>=3?"Pass":con.length===2?"Small stake only":pro.length>=2&&con.length<=1?"Worth a look":"Lean small";
+ return{v:v,pro:pro,con:con}}
+function rcard(x,i,tag){var a=x.a,rv=rview(x),r=review(x);return'<div class="card"><div class="meta"><span>'+tag+'</span><span>'+e(a.sp.e+" "+a.sp.l)+'</span></div><div class="ttl">'+e(tv(a))+'</div><div class="pn" style="margin-top:6px;font-weight:900;font-size:17px;color:var(--a2)">PICK: '+e(x.lab)+'</div>'+(rv.t?'<div class="gm">'+e(rv.t)+'</div>':'')+'<div class="tags"><span class="tag g">Pays '+mx(x.px)+'</span><span class="tag sc s'+grade(x.score)+'">Score '+x.score+' · '+grade(x.score)+'</span><span class="tag d">'+x.ms.length+' capper'+(x.ms.length>1?"s":"")+' · '+$(x.usd)+'</span></div>'+rvHtml(r)+'</div>'}
+function rvHtml(r){return'<div class="dd" style="display:block"><div class="ds">Review · '+e(r.v)+'</div>'+(r.pro.length?'<div class="gm" style="font-size:14px">✅ '+e(r.pro.join(" · "))+'</div>':"")+(r.con.length?'<div class="gm" style="font-size:14px">⚠️ '+e(r.con.join(" · "))+'</div>':"")+'</div>'}
+function combos(R){var C=R.filter(function(x){return x.score>=50&&x.px>=0.4&&x.px<=0.85}).sort(function(p,q){return q.score-p.score}),used={},legs=[];C.forEach(function(x){var k=gkey(x.a);if(used[k])return;used[k]=1;legs.push(x)});
+ var out=[];if(legs.length>=2)out.push({n:"2-pick combo",L:legs.slice(0,2)});if(legs.length>=3)out.push({n:"3-pick combo",L:legs.slice(0,3)});if(legs.length>=4)out.push({n:"Big 4-pick combo",L:legs.slice(0,4)});return out}
+function risky(){var R=S.rows||[],h='<div class="sub">Higher-risk, higher-payout picks. Every pick gets a written review. Reviews are auto-written by the scanner from the cappers, grade, price and timing. They are a guide, not a guarantee.</div>';
+ if(!R.length)return h+'<div class="card empty"><b>No picks loaded</b>Go to Whale feed and tap Scan first.</div>';
+ var CB=combos(R);h+='<h3 style="margin:14px 2px 6px">🎰 Combo picks</h3>';
+ if(!CB.length)h+='<div class="card empty"><b>Not enough separate games yet</b>Combos need 2+ different games from good cappers. Try Last 3h or 12h.</div>';
+ CB.forEach(function(c){var mult=c.L.reduce(function(t,x){return t*(1/x.px)},1),pr=c.L.reduce(function(t,x){return t*x.px},1),sc=Math.round(c.L.reduce(function(t,x){return t+x.score},0)/c.L.length),worst=c.L.some(function(x){return x.ms.length<2});
+  var rv=c.L.length>=4?"Pass or tiny stake":pr<0.15?"Small stake only":worst?"Lean small":"Worth a look";
+  h+='<div class="card"><div class="meta"><span>'+e(c.n)+'</span><span>All must win</span></div><div class="tags"><span class="tag g">Pays '+(Math.round(mult*10)/10)+'x</span><span class="tag d">Hits ~'+Math.round(pr*100)+'% of the time</span><span class="tag sc s'+grade(sc)+'">Avg '+sc+' · '+grade(sc)+'</span></div>'
+   +c.L.map(function(x,i){var rv2=rview(x);return'<div class="dr"><b>'+(i+1)+'. '+e(x.a.sp.e+" "+tv(x.a))+'</b><span>'+e(x.lab)+' · '+mx(x.px)+'</span><small>'+x.ms.length+' capper'+(x.ms.length>1?"s":"")+' · '+$(x.usd)+(rv2.t?" · "+e(rv2.t):"")+'</small></div>'}).join("")
+   +'<div class="dd" style="display:block"><div class="ds">Review · '+rv+'</div><div class="gm" style="font-size:14px">Every leg has to win, so one miss loses the whole combo. Chance of hitting is the legs\' prices multiplied together, before the market\'s fee. Real hit rate is often lower.</div></div></div>'});
+ var LS=R.filter(function(x){return x.px<0.34&&x.px>0.05}).sort(function(p,q){return q.score-p.score||q.usd-p.usd}).slice(0,15);
+ h+='<h3 style="margin:18px 2px 6px">🚀 Long shots (pay 3x or more)</h3>';
+ if(!LS.length)h+='<div class="card empty"><b>No long shots right now</b>None of the current picks pay 3x or more.</div>';
+ h+=LS.map(function(x,i){return rcard(x,i,(x.px<0.2?"Wild · ":"Risky · ")+"#"+(i+1))}).join("");return h}
 function board(){var h='<div class="sub">Public leaderboard. No key needed.</div><div class="fl" style="padding-top:0">'+[50,100,200].map(function(n){return fc(n,"Top "+n,S.lim==n,"lim")}).join("")+'</div><div style="display:flex;gap:8px;margin:2px 0 8px"><input id="cl" type="number" min="1" max="1000" inputmode="numeric" placeholder="Custom number (1–1000)" value="'+([50,100,200].indexOf(S.lim)<0?S.lim:"")+'" style="flex:1"><button class="b1" id="cg" style="margin:0">Load</button></div>';
  if(S.boardErr)h+='<div class="err">'+e(S.boardErr)+'</div>';
  if(S.board.length)h+='<div class="sub" style="margin:6px 0">Showing '+S.board.length+(S.board.length<S.lim?(S.lim>100?" (Orca caps the leaderboard at 100)":" (Orca returned fewer than "+S.lim+")"):"")+'</div>';
@@ -274,7 +302,7 @@ function cappers(){return'<div class="sub">Every capper you can trust or track. 
 function fillCaps(){var el=document.getElementById("clist");if(el)el.innerHTML=clist()}
 function draw(){savePrefs();var R=S.rows,tot=R.reduce(function(m,x){return m+x.usd},0),top=R.reduce(function(m,x){return Math.max(m,x.usd)},0);
  s1.textContent=R.length;s2.textContent=tot?$(tot):"0";s3.textContent=S.hedged;s4.textContent=top?$(top):"—";
- main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="caps"?cappers():settings();
+ main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="caps"?cappers():S.t==="risk"?risky():settings();
  [].forEach.call(tabs.children,function(b){b.className="pill"+(b.dataset.t===S.t?" on":"")});auto.textContent="Auto: "+(S.auto?"on":"off")}
 var main=document.getElementById("main"),tabs=document.getElementById("tabs"),statusEl=document.getElementById("status"),go=document.getElementById("go"),auto=document.getElementById("auto");
 var s1=document.getElementById("s1"),s2=document.getElementById("s2"),s3=document.getElementById("s3"),s4=document.getElementById("s4");
