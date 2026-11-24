@@ -175,7 +175,7 @@ def orca_positions(w):
 
 
 def v2_rows(w, status, limit):
-    j = get(f"{DATA_API}/v2/positions?user={w}&status={status}&limit={limit}")
+    j = get(f"{DATA_API}/v2/positions?user={w}&status={status}&limit={limit}" + ("&sort_by=TIMESTAMP&sort_direction=DESC" if status == "CLOSED" else ""))
     return rows_of(j)
 
 
