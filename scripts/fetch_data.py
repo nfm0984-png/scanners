@@ -10,7 +10,7 @@ LB_PATHS = ["/api/public/v1/whales/leaderboard", "/api/v2/whales/leaderboard",
 DATA_API = "https://data-api.polymarket.com"
 KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
-TOP = int(os.environ.get("TOP_N", "100"))
+TOP = int(os.environ.get("TOP_WALLETS", "200"))
 KALSHI_MIN_USD = float(os.environ.get("KALSHI_MIN_USD", "499"))
 
 
