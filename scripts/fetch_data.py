@@ -113,7 +113,7 @@ def sports_pool():
         seen.add(w)
         q, d = quality(r, now)
         st = ",".join(r.get("styles") or []).lower()
-        if (d["days"] > 21 or d["res"] < 30 or d["roi"] < 0.01 or float(r.get("profit_factor") or 0) < 1.1
+        if (d["days"] > float(os.environ.get("MAX_IDLE_DAYS", "3")) or d["res"] < 30 or d["roi"] < 0.01 or float(r.get("profit_factor") or 0) < 1.1
                 or float(r.get("total_pnl") or 0) < 5000 or r.get("liquidity_provider")
                 or "maker" in st or "mm" in st.split(",") or float(r.get("avg_entry_price") or 0.5) > 0.88):
             continue
@@ -124,15 +124,39 @@ def sports_pool():
     return pool
 
 
+def activity(closed_sorted, window=14):
+    """Share of days with settled bets over the last `window` days (0-1).
+    If the latest 50 bets all fall inside the window, measure over their span."""
+    now = time.time()
+    ts = []
+    for p in closed_sorted:
+        t = float(p.get("timestamp") or 0)
+        if t > 1e11:
+            t /= 1000
+        if t and now - t <= window * 86400:
+            ts.append(t)
+    if not ts:
+        return 0.0
+    days = {int(t // 86400) for t in ts}
+    span = window
+    if len(ts) == len(closed_sorted) and len(ts) >= 40:
+        span = max(1, min(window, int((now - min(ts)) // 86400) + 1))
+    return round(min(1.0, len(days) / span), 2)
+
+
 def recent_form(lb, closed):
     """Blend lifetime skill with the last 30 settled bets, so a wallet with a
     great history but a cold current run drops down the list."""
     for r in lb:
-        c = closed.get(wallet_of(r)) or []
-        c = sorted(c, key=lambda p: -(float(p.get("timestamp") or 0)))[:30]
+        allc = sorted(closed.get(wallet_of(r)) or [], key=lambda p: -(float(p.get("timestamp") or 0)))
+        act = activity(allc)
+        c = allc[:30]
         res = [float(p.get("realizedPnl") or 0) for p in c if float(p.get("realizedPnl") or 0) != 0]
+        r["active_days"] = act
+        amult = 1.1 if act >= 0.7 else 1.0 if act >= 0.5 else 0.75 if act >= 0.3 else 0.5
         if len(res) < 8:
-            r["recent"] = {"n": len(res)}
+            r["recent"] = {"n": len(res), "act": act}
+            r["drop"] = "too few recent bets"
             continue
         w = sum(1 for x in res if x > 0)
         pnl = sum(res)
@@ -146,8 +170,16 @@ def recent_form(lb, closed):
         else:
             tag = "steady"
         r["q_life"] = r["q"]
-        r["q"] = min(100, round(r["q"] * mult))
-        r["recent"] = {"n": len(res), "w": w, "pnl": round(pnl), "form": tag}
+        r["q"] = min(100, round(r["q"] * mult * amult))
+        r["recent"] = {"n": len(res), "w": w, "pnl": round(pnl), "form": tag, "act": act}
+        if w * 2 <= len(res) or pnl <= 0:
+            r["drop"] = "not winning lately"
+        elif act < 0.3:
+            r["drop"] = "not active most days"
+    dropped = [r for r in lb if r.get("drop")]
+    if len(lb) - len(dropped) >= 15:
+        lb[:] = [r for r in lb if not r.get("drop")]
+    print("recent-form drops:", len(dropped), "kept:", len(lb))
     lb.sort(key=lambda r: -r["q"])
     for i, r in enumerate(lb):
         r["rank"] = i + 1
