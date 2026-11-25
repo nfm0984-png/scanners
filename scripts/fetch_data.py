@@ -124,6 +124,35 @@ def sports_pool():
     return pool
 
 
+def recent_form(lb, closed):
+    """Blend lifetime skill with the last 30 settled bets, so a wallet with a
+    great history but a cold current run drops down the list."""
+    for r in lb:
+        c = closed.get(wallet_of(r)) or []
+        c = sorted(c, key=lambda p: -(float(p.get("timestamp") or 0)))[:30]
+        res = [float(p.get("realizedPnl") or 0) for p in c if float(p.get("realizedPnl") or 0) != 0]
+        if len(res) < 8:
+            r["recent"] = {"n": len(res)}
+            continue
+        w = sum(1 for x in res if x > 0)
+        pnl = sum(res)
+        mult = 1.0
+        if pnl < 0 and w / len(res) < 0.45:
+            mult, tag = 0.5, "cold"
+        elif pnl < 0:
+            mult, tag = 0.8, "cooling"
+        elif w / len(res) >= 0.55:
+            mult, tag = 1.08, "hot"
+        else:
+            tag = "steady"
+        r["q_life"] = r["q"]
+        r["q"] = min(100, round(r["q"] * mult))
+        r["recent"] = {"n": len(res), "w": w, "pnl": round(pnl), "form": tag}
+    lb.sort(key=lambda r: -r["q"])
+    for i, r in enumerate(lb):
+        r["rank"] = i + 1
+
+
 def leaderboard():
     pool = sports_pool()
     if len(pool) >= 30:
@@ -412,6 +441,9 @@ def main():
             print("probe fail", e, file=sys.stderr)
         pos, closed = wallets_data(wallets)
         print("positions:", len(pos), "closed:", len(closed))
+        if lb and lb[0].get("q") is not None:
+            recent_form(lb, closed)
+            dump("leaderboard.json", lb)
         dump("positions.json", pos)
         dump("closed.json", closed)
     k = kalshi_combos()
