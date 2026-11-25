@@ -58,7 +58,78 @@ def wallet_of(r):
     return ""
 
 
+def clip(v, lo=0.0, hi=1.0):
+    return max(lo, min(hi, v))
+
+
+def quality(r, now=None):
+    """0-100 copy-quality score for a sports wallet. Built on skill, not size:
+    skill z-score, ROI, edge per bet, sample size and profit factor, with
+    penalties for styles you can't copy in time (in-play / fast)."""
+    import math
+    now = now or time.time()
+    res = max(int(r.get("resolved_markets") or 0), int(r.get("market_wins") or 0) + int(r.get("market_losses") or 0))
+    vol = float(r.get("total_volume") or 0)
+    pnl = float(r.get("total_pnl") or 0)
+    roi = pnl / vol if vol > 0 else 0.0
+    z = float(r.get("skill_z") or 0)
+    edge = float(r.get("skill_edge_cents") or 0)
+    pf = min(float(r.get("profit_factor") or 0), 10.0)
+    s = (0.30 * clip(z / 8) + 0.25 * clip(roi / 0.10) + 0.15 * clip(edge / 10)
+         + 0.15 * clip(math.log10(max(res, 1)) / 3.5) + 0.15 * clip((pf - 1) / 2))
+    st = ",".join(r.get("styles") or []).lower()
+    copy = "ok"
+    if "fast" in st:
+        s *= 0.55; copy = "fast"
+    elif "inplay" in st:
+        s *= 0.85; copy = "inplay"
+    days = (now - float(r.get("last_trade_ts") or 0)) / 86400
+    if days > 7:
+        s *= 0.85
+    if float(r.get("avg_entry_price") or 0.5) > 0.80:
+        s *= 0.85
+    return round(100 * s), {"res": res, "roi": round(roi, 4), "days": round(days, 1), "copy": copy}
+
+
+def sports_pool():
+    """Top sports wallets by copy-quality, not by all-time P&L. Drops inactive
+    wallets, market makers / LPs, favorite farmers and tiny samples."""
+    now, raw, seen = time.time(), [], set()
+    for off in range(0, 1000, 100):
+        try:
+            got = rows_of(get(f"{ORCA}/api/v2/whales/leaderboard?category=sports&limit=100&offset={off}"))
+        except Exception as e:
+            print("sports lb fail", off, e, file=sys.stderr)
+            break
+        if not got:
+            break
+        raw += got
+        time.sleep(0.3)
+    pool = []
+    for r in raw:
+        w = wallet_of(r)
+        if not w or w in seen:
+            continue
+        seen.add(w)
+        q, d = quality(r, now)
+        st = ",".join(r.get("styles") or []).lower()
+        if (d["days"] > 21 or d["res"] < 30 or d["roi"] < 0.01 or float(r.get("profit_factor") or 0) < 1.1
+                or float(r.get("total_pnl") or 0) < 5000 or r.get("liquidity_provider")
+                or "maker" in st or "mm" in st.split(",") or float(r.get("avg_entry_price") or 0.5) > 0.88):
+            continue
+        r.update({"q": q, "roi": d["roi"], "copy": d["copy"], "res": d["res"]})
+        pool.append(r)
+    pool.sort(key=lambda r: -r["q"])
+    print("sports pool:", len(pool), "of", len(raw))
+    return pool
+
+
 def leaderboard():
+    pool = sports_pool()
+    if len(pool) >= 30:
+        for i, r in enumerate(pool):
+            r["rank"] = i + 1
+        return pool
     rows, seen = [], set()
     for qs in ("limit=100", "limit=100&offset=100"):
         got = []
