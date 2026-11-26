@@ -144,11 +144,50 @@ def activity(closed_sorted, window=14):
     return round(min(1.0, len(days) / span), 2)
 
 
-def recent_form(lb, closed):
+def dead_open(open_rows, now=None):
+    """Polymarket leaves LOSING positions 'open' at ~0c (nobody redeems a loser), so a closed-only
+    history is mostly wins. Return resolved-but-unredeemed open positions as settled rows."""
+    import datetime
+    now = now or time.time()
+    out = []
+    for p in open_rows or []:
+        c, cost = num(p.get("curPrice")), num(p.get("initialValue")) or 0
+        if c is None or cost <= 0:
+            continue
+        t = 0
+        try:
+            t = datetime.datetime.strptime(str(p.get("endDate") or "")[:10], "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc).timestamp()
+        except Exception:
+            pass
+        over = bool(p.get("redeemable")) or (t and t < now - 6 * 3600)
+        if not over or not (c <= 0.02 or c >= 0.98):
+            continue
+        win = c >= 0.98
+        cv, ap = num(p.get("currentValue")) or 0, num(p.get("avgPrice"))
+        pnl = (cv - cost if cv > 0 else (cost * (1 / ap - 1) if ap else 0.01)) if win else -cost
+        out.append({"title": p.get("title"), "outcome": p.get("outcome"), "avgPrice": ap,
+                    "realizedPnl": max(pnl, 0.01) if win else pnl, "timestamp": (t + 86399) if t else now - 86400,
+                    "slug": p.get("slug"), "unred": 1})
+    return out
+
+
+def settled(closed_rows, open_rows):
+    seen, out = set(), []
+    for p in list(closed_rows or []) + dead_open(open_rows):
+        k = (str(p.get("title") or "").lower(), str(p.get("outcome") or "").lower())
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(p)
+    return out
+
+
+def recent_form(lb, closed, pos=None):
     """Blend lifetime skill with the last 30 settled bets, so a wallet with a
     great history but a cold current run drops down the list."""
     for r in lb:
-        allc = sorted(closed.get(wallet_of(r)) or [], key=lambda p: -(float(p.get("timestamp") or 0)))
+        w = wallet_of(r)
+        allc = sorted(settled(closed.get(w), (pos or {}).get(w)), key=lambda p: -(float(p.get("timestamp") or 0)))
         act = activity(allc)
         c = allc[:30]
         res = [float(p.get("realizedPnl") or 0) for p in c if float(p.get("realizedPnl") or 0) != 0]
@@ -311,6 +350,17 @@ def v2_rows(w, status, limit):
     return rows_of(j)
 
 
+def v2_deep(w, status, sizes):
+    """Ask for the deepest history first; fall back to smaller pages if the API refuses a big limit."""
+    last = None
+    for n in sizes:
+        try:
+            return v2_rows(w, status, n)
+        except Exception as e:
+            last = e
+    raise last
+
+
 def from_v2(r):
     """Convert a v2 (snake_case) row to the camelCase shape the page already reads."""
     def g(*k):
@@ -330,7 +380,7 @@ def wallets_data(wallets):
     pos, closed = {}, {}
     for i, w in enumerate(wallets):
         try:
-            pos[w] = slim([from_v2(r) for r in v2_rows(w, "OPEN", 60)], POS_KEYS)
+            pos[w] = slim([from_v2(r) for r in v2_deep(w, "OPEN", (100, 60))], POS_KEYS)
         except Exception as e:
             print("positions fail", w, e, file=sys.stderr)
             try:
@@ -338,7 +388,7 @@ def wallets_data(wallets):
             except Exception as e2:
                 print("orca positions fail", w, e2, file=sys.stderr)
         try:
-            closed[w] = slim([from_v2(r) for r in v2_rows(w, "CLOSED", 50)], CLOSED_KEYS)
+            closed[w] = slim([from_v2(r) for r in v2_deep(w, "CLOSED", (100, 50))], CLOSED_KEYS)
         except Exception as e:
             print("closed fail", w, e, file=sys.stderr)
         time.sleep(0.25)
@@ -474,7 +524,7 @@ def main():
         pos, closed = wallets_data(wallets)
         print("positions:", len(pos), "closed:", len(closed))
         if lb and lb[0].get("q") is not None:
-            recent_form(lb, closed)
+            recent_form(lb, closed, pos)
             dump("leaderboard.json", lb)
         dump("positions.json", pos)
         dump("closed.json", closed)
