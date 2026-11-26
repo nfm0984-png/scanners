@@ -113,7 +113,7 @@ def sports_pool():
         seen.add(w)
         q, d = quality(r, now)
         st = ",".join(r.get("styles") or []).lower()
-        if (d["days"] > float(os.environ.get("MAX_IDLE_DAYS", "3")) or d["res"] < 30 or d["roi"] < 0.01 or float(r.get("profit_factor") or 0) < 1.1
+        if (d["days"] > float(os.environ.get("MAX_IDLE_DAYS", "7")) or d["res"] < 20 or d["roi"] < 0.01 or float(r.get("profit_factor") or 0) < 1.1
                 or float(r.get("total_pnl") or 0) < 5000 or r.get("liquidity_provider")
                 or "maker" in st or "mm" in st.split(",") or float(r.get("avg_entry_price") or 0.5) > 0.88):
             continue
@@ -193,7 +193,7 @@ def recent_form(lb, closed, pos=None):
         res = [float(p.get("realizedPnl") or 0) for p in c if float(p.get("realizedPnl") or 0) != 0]
         r["active_days"] = act
         amult = 1.1 if act >= 0.7 else 1.0 if act >= 0.5 else 0.75 if act >= 0.3 else 0.5
-        if len(res) < 8:
+        if len(res) < 5:
             r["recent"] = {"n": len(res), "act": act}
             r["drop"] = "too few recent bets"
             continue
@@ -211,10 +211,8 @@ def recent_form(lb, closed, pos=None):
         r["q_life"] = r["q"]
         r["q"] = min(100, round(r["q"] * mult * amult))
         r["recent"] = {"n": len(res), "w": w, "pnl": round(pnl), "form": tag, "act": act}
-        if w * 2 <= len(res) or pnl <= 0:
-            r["drop"] = "not winning lately"
-        elif act < 0.3:
-            r["drop"] = "not active most days"
+        if pnl < 0 and w / len(res) < 0.45:
+            r["drop"] = "losing lately"
     dropped = [r for r in lb if r.get("drop")]
     if len(lb) - len(dropped) >= 15:
         lb[:] = [r for r in lb if not r.get("drop")]
