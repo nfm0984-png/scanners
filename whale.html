@@ -110,6 +110,7 @@ body{background:#E6F3EA}
 <div class="col">
 <div class="tabs" id="tabs">
   <button class="pill on" data-t="feed">Whale feed</button>
+  <button class="pill" data-t="up">Coming up</button>
   <button class="pill" data-t="combo">Combos</button>
   <button class="pill" data-t="caps">Cappers</button>
   <button class="pill" data-t="board">Leaderboard</button>
@@ -123,7 +124,7 @@ body{background:#E6F3EA}
   <div class="hero">
     <small>ORCA · LIVE FEED</small>
     <h2>Big wallets. Fresh trades. No hedges.</h2>
-    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-26 · 13:20</div>
+    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-26 · 15:45</div>
     <div class="hb"><button class="p" id="go">⚡ Scan</button><button id="auto">Auto: off</button></div>
     <div class="st">
       <div><b id="s1">0</b><span>Positions</span></div>
@@ -567,9 +568,31 @@ function lookup(){var L=S.lk,h='<div class="sub">Type a Polymarket capper (name 
  if(!sp.length)return h+'<div class="card empty"><b>No open sports picks of $499+ right now</b>They may have nothing open, or only small or political bets.</div>';
  h+=sp.map(function(x){var p=x.p,a=x.a,ln=kw(a),sz=+p.currentValue||+p.initialValue||0,ap=parseFloat(p.avgPrice),cp=parseFloat(p.curPrice);return'<div class="card"><div class="meta"><span>'+e(a.sp.l==="Other"&&propOf(a)?"🎯 Player prop":a.sp.e+" "+a.sp.l)+'</span><span>'+$(sz)+'</span></div><div class="ttl">'+e(ln)+'</div><div class="gm" style="font-size:13px">'+e(tv(a))+'</div><div class="tags"><span class="tag g">bought '+(ap>0?mx(ap):"—")+'</span>'+(cp>0?'<span class="tag">now '+mx(cp)+'</span>':'')+(ap>0&&cp>0?(cp-ap>0.05?'<span class="tag o">⚠️ price up '+Math.round((cp-ap)*100)+'¢</span>':'<span class="tag g">✅ price still good</span>'):'')+'</div><button class="cp" data-cp="'+e(ln+" ("+tv(a)+")")+'" style="margin-top:8px">📋 Copy</button></div>'}).join("");
  return h}
+// ===== Coming up: every scanned pick whose game hasn't started, soonest first, grouped by start time =====
+function untilTxt(ms){var m=Math.round(ms/60000);return m<60?m+"m":Math.floor(m/60)+"h "+(m%60?m%60+"m":"")}
+function upCard(x,best){var a=x.a,g=grade(x.score),rv=review(x),st=a.gt/1000,left=a.gt-Date.now(),cp=tv(a)+" | Kalshi: "+kw(a)+" | "+clock(st);
+ return'<div class="card"'+(best?' style="border:2px solid var(--a2)"':'')+'><div class="meta"><span>'+e(a.sp.e+" "+a.sp.l)+'</span><span>⏰ '+e(clock(st))+' · in '+e(untilTxt(left))+'</span></div>'
+  +(best?'<b>🏆 Best upcoming bet</b>':'')+'<div class="ttl">'+e(tv(a))+'</div><div class="pn" style="margin-top:4px;font-weight:900;font-size:18px;color:var(--a2)">PICK: '+e(x.lab||pt(a))+'</div>'
+  +'<div class="gm" style="margin-top:4px">🟩 <b>On Kalshi:</b> '+e(dot(kw(a)))+' · pays '+mx(x.px)+'</div>'
+  +'<div class="tags"><span class="tag sc s'+g+'">Score '+x.score+' · '+g+'</span>'+stakeTag(x)+'<span class="tag">'+x.ms.length+' capper'+(x.ms.length>1?'s':'')+' · '+$(x.usd)+'</span>'+(x.t?'<span class="tag">🕒 last buy '+e(rel(x.t))+'</span>':'')+'<button class="tag cp" data-cp="'+e(cp)+'" style="border:0;cursor:pointer">Copy pick</button></div>'
+  +'<div class="gm" style="font-size:13px">'+e(rv.v)+(rv.con.length?' · ⚠️ '+e(rv.con[0]):'')+'</div>'+(best?capLine(x):'')+'</div>'}
+function upcoming(){var now=Date.now(),R=(S.rows||[]).filter(function(x){return !x.splitLost}),h='';
+ h+='<div class="sub" style="margin:0 2px 8px;font-size:13.5px">Games that haven\'t started yet, soonest first. From your last scan'+(S.scanT?' at '+e(tm(S.scanT)):'')+'. Tap ⚡ Scan on the Whale feed for fresh picks.</div>';
+ h+='<div class="tags" style="margin:0 2px 10px"><button class="pill'+(S.cuAB?'':' on')+'" onclick="S.cuAB=0;draw()">All picks</button><button class="pill'+(S.cuAB?' on':'')+'" onclick="S.cuAB=1;draw()">B or better</button></div>';
+ if(!R.length)return h+'<div class="card empty"><b>No picks yet</b>Run a scan on the Whale feed first.</div>';
+ var U=R.filter(function(x){return x.a.gt&&x.a.gt>now&&x.a.gt-now<=48*3600e3}),live=R.filter(function(x){return x.a.gt&&x.a.gt<=now}).length,noT=R.filter(function(x){return !x.a.gt}).length;
+ if(S.cuAB)U=U.filter(function(x){return x.score>=58});
+ if(!U.length)return h+'<div class="card empty"><b>Nothing coming up</b>'+(S.cuAB?'No B-or-better picks on upcoming games. Try "All picks".':'None of the scanned picks are on games starting in the next 48 hours.')+'</div>';
+ var B=U.filter(function(x){return !x.split&&!(x.drift>0.05)&&x.a.gt-now>10*60000}).sort(function(p,q){return q.score-p.score||(q.vets||0)-(p.vets||0)||q.usd-p.usd})[0];
+ if(B)h+=upCard(B,1);
+ U.sort(function(p,q){return p.a.gt-q.a.gt||q.score-p.score});
+ var d=new Date();d.setHours(23,59,59,999);var eod=+d,eot=eod+864e5,G=[[now+36e5,"⏰ Starting within the hour"],[now+3*36e5,"Next 3 hours"],[eod,"Later today"],[eot,"Tomorrow"],[Infinity,"Later"]],last=-1;
+ U.forEach(function(x){var gi=0;while(x.a.gt>G[gi][0])gi++;if(gi!==last){h+='<h3 style="margin:16px 2px 6px">'+G[gi][1]+'</h3>';last=gi}h+=upCard(x,0)});
+ if(live||noT)h+='<div class="sub" style="margin:10px 2px">'+(live?live+' pick'+(live>1?'s':'')+' on games already started':'')+(live&&noT?' · ':'')+(noT?noT+' with no start time':'')+' not shown here.</div>';
+ return h}
 function draw(){savePrefs();var R=S.rows,tot=R.reduce(function(m,x){return m+x.usd},0),top=R.reduce(function(m,x){return Math.max(m,x.usd)},0);
  s1.textContent=R.length;s2.textContent=tot?$(tot):"0";s3.textContent=S.hedged;s4.textContent=top?$(top):"—";
- try{main.innerHTML=S.t==="feed"?feed():S.t==="board"?board():S.t==="res"?results():S.t==="lk"?lookup():S.t==="caps"?cappers():S.t==="combo"||S.t==="risk"?risky():settings()}catch(ex){main.innerHTML='<div class="err">This tab hit an error: '+e(String(ex&&ex.message||ex))+'. Screenshot this and send it to Claude.</div>'}
+ try{main.innerHTML=S.t==="feed"?feed():S.t==="up"?upcoming():S.t==="board"?board():S.t==="res"?results():S.t==="lk"?lookup():S.t==="caps"?cappers():S.t==="combo"||S.t==="risk"?risky():settings()}catch(ex){main.innerHTML='<div class="err">This tab hit an error: '+e(String(ex&&ex.message||ex))+'. Screenshot this and send it to Claude.</div>'}
  [].forEach.call(tabs.children,function(b){b.className="pill"+(b.dataset.t===S.t?" on":"")});auto.textContent="Auto: "+(S.auto?"on":"off")}
 var main=document.getElementById("main"),tabs=document.getElementById("tabs"),statusEl=document.getElementById("status"),go=document.getElementById("go"),auto=document.getElementById("auto");
 var s1=document.getElementById("s1"),s2=document.getElementById("s2"),s3=document.getElementById("s3"),s4=document.getElementById("s4");
