@@ -123,7 +123,7 @@ body{background:#E6F3EA}
   <div class="hero">
     <small>ORCA · LIVE FEED</small>
     <h2>Big wallets. Fresh trades. No hedges.</h2>
-    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-25 · 22:30</div>
+    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-25 · 22:45</div>
     <div class="hb"><button class="p" id="go">⚡ Scan</button><button id="auto">Auto: off</button></div>
     <div class="st">
       <div><b id="s1">0</b><span>Positions</span></div>
@@ -245,9 +245,15 @@ function build(raw){var A=raw.map(map),both={};S.km=[];A.forEach(function(a){var
  // Category vets: a pick needs at least one capper with a proven edge in THIS sport to reach A.
  R2.forEach(function(y){var l=y.a.sp&&y.a.sp.l,known=0,v=0;y.ms.forEach(function(m){var c=catRec(m.a.wallet,l);if(c){known++;if(c.vet)v++}});y.vets=v;y.vetsKnown=known>0;if(!known)y.score=Math.min(y.score,71);else if(!v){y.score=Math.min(y.score,57);y.why+=" · no proven "+l+" capper on it"}else y.why+=" · "+v+" "+l+" vet"+(v>1?"s":"")});
  // Split games: weigh each side by (category trust x money) and keep only the stronger side.
- var spG={};R2.forEach(function(y){var k=String(y.a.market).toLowerCase();if((byM[k]||[]).some(function(z){return z!==y&&String(z.a.outcome).toLowerCase()!==String(y.a.outcome).toLowerCase()&&z.usd>=0.4*y.usd}))spG[k]=1});
- Object.keys(spG).forEach(function(k){var sides=byM[k];sides.forEach(function(z){var l=z.a.sp&&z.a.sp.l;z.str=z.ms.reduce(function(t,m){return t+vetW(m.a.wallet,l)*m.usd},0)});var best=sides.slice().sort(function(p,q){return q.str-p.str||q.score-p.score})[0],tot=sides.reduce(function(t,z){return t+z.str},0),mg=tot>0?(2*best.str-tot)/tot:0,pc=tot>0?Math.round(100*best.str/tot):50;
-  sides.forEach(function(z){if(z===best){if(mg>=0.5){z.splitWon=1;z.score=Math.max(0,z.score-Math.round(25*(1-mg)));z.why+=" · ⚖️ split game, but this side's cappers are much stronger ("+pc+"% of vet-weighted money)"}else{z.split=1;z.score=Math.max(0,z.score-25);z.why+=" · ⚠️ split game: both sides have similar cappers ("+pc+"% here)"}}else{z.split=1;z.splitLost=1;z.score=Math.max(0,z.score-40);z.why+=" · ⚠️ weaker side of a split game"}})});
+ // One side per game: group every pick on the same game AND bet type (winner / total / spread). The side with
+ // the most vet-weighted money stays; every other side is hidden. Heavy opposition costs points.
+ var byG={};R2.forEach(function(y){var t=String(y.pk&&y.pk.k||"m|").split("|")[0],k=(/ vs /.test(tv(y.a))?gkey(y.a):String(y.a.market).toLowerCase())+"#"+t;(byG[k]=byG[k]||[]).push(y)});
+ Object.keys(byG).forEach(function(k){var sides=byG[k];if(sides.length<2)return;sides.forEach(function(z){var l=z.a.sp&&z.a.sp.l;z.str=z.ms.reduce(function(t,m){return t+vetW(m.a.wallet,l)*m.usd},0)});
+  var best=sides.slice().sort(function(p,q){return q.str-p.str||q.score-p.score})[0],tot=sides.reduce(function(t,z){return t+z.str},0),mg=tot>0?(2*best.str-tot)/tot:0,pc=tot>0?Math.round(100*best.str/tot):50,oppUsd=sides.reduce(function(t,z){return z===best?t:t+z.usd},0),heavy=oppUsd>=0.4*best.usd,others=sides.filter(function(z){return z!==best}).map(function(z){return z.lab||pt(z.a)}).join(" / ");
+  sides.forEach(function(z){if(z!==best){z.split=1;z.splitLost=1;z.score=Math.max(0,z.score-40);return}
+   if(mg<0.5){z.split=1;z.score=Math.max(0,z.score-25);z.why+=" · ⚠️ split game: "+others+" has similar cappers ("+pc+"% here)"}
+   else if(heavy){z.splitWon=1;z.score=Math.max(0,z.score-Math.round(25*(1-mg)));z.why+=" · ⚖️ beat "+others+" on capper strength ("+pc+"% of vet-weighted money)"}
+   else{z.splitWon=1;z.why+=" · ✅ only "+$(oppUsd)+" on "+others}})});
  // Self-tuning from the scanner's own settled picks.
  R2.forEach(function(y){var tn=tuneOf(y);if(tn){y.tune=tn;y.score=clip(y.score+tn,0,99);y.why+=" · 🧠 self-tuned "+(tn>0?"+":"")+tn}});
  R2.forEach(function(y){
