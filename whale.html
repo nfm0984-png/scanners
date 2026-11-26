@@ -123,7 +123,7 @@ body{background:#E6F3EA}
   <div class="hero">
     <small>ORCA · LIVE FEED</small>
     <h2>Big wallets. Fresh trades. No hedges.</h2>
-    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-25 · 22:55</div>
+    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-26 · 13:05</div>
     <div class="hb"><button class="p" id="go">⚡ Scan</button><button id="auto">Auto: off</button></div>
     <div class="st">
       <div><b id="s1">0</b><span>Positions</span></div>
@@ -157,6 +157,21 @@ function kLine(title,subject,side){var no=String(side).toUpperCase()==="NO",sub=
  if(/by over [\d.]+/i.test(sub))return tw+" · "+(no?"No":"Yes");
  var t=pickTeam(title,sub,side);if(/^Not /.test(t))return tw.replace(/\s+to win.*$/i,"")+" to win · No";return t+" to win · Yes"}
 function spr(a){var m=/spread[:\s]+(.+?)\s*\(([+-]?[\d.]+)\)/i.exec(String(a.market));return m?{team:m[1].replace(/^the\s+/i,"").trim(),line:parseFloat(m[2])}:null}
+// ===== Plain-English leg text for slates: the capper's exact position, and a check of legs on the same game =====
+function isFut(a){return /win the 20\d\d|championship|finals\?|world series|super bowl|stanley cup|mvp|to win the (nba|nfl|nhl|mlb)|season wins|make the playoffs/i.test(String(a.market))&&!/ vs\.? /i.test(String(a.market))}
+function tc(x){x=String(x||"");return /[a-z]/.test(x)?x:x.toLowerCase().replace(/\b[a-z]/g,function(c){return c.toUpperCase()})}
+function legOf(a){var o=tc(a.outcome),O=o.toUpperCase(),s=spr(a),T=tot(a);
+ if(s){var t=s.team,op=opp(a,t)||("not "+t),mine=/^(yes|no)$/i.test(o)?O==="YES":same(o,t),side=mine?t:(/^(yes|no)$/i.test(o)?(op||"Against "+t):o),ln=mine?s.line:-s.line,L=Math.abs(ln);
+  return{kind:"s",team:side,ln:ln,txt:side+" "+(ln>0?"+":"−")+L,plain:ln>0?side+" wins, or loses by less than "+L:side+" wins by more than "+L}}
+ if(T!==null){var u=/^no$|under/i.test(o);return{kind:"t",txt:(u?"Under ":"Over ")+T,plain:"Total "+(u?"under ":"over ")+T}}
+ if(/^(yes|no)$/i.test(o)){var mk=String(a.market||"").replace(/^will\s+(the\s+)?/i,"").replace(/\?$/,"");return{kind:isFut(a)?"f":"y",txt:(O==="NO"?"NO: ":"YES: ")+mk,plain:(O==="NO"?"This does NOT happen: ":"This happens: ")+mk}}
+ return{kind:"m",team:o,txt:o+" to win",plain:o+" wins the game"}}
+function legClash(a1,l1,a2,l2){if(gkey(a1)!==gkey(a2)&&!(l1.team&&l2.team&&(tv(a1).toLowerCase().indexOf(String(l2.team).toLowerCase())>=0||tv(a2).toLowerCase().indexOf(String(l1.team).toLowerCase())>=0)))return null;
+ var m=l1.kind==="m"?l1:l2.kind==="m"?l2:null,sp=l1.kind==="s"?l1:l2.kind==="s"?l2:null;
+ if(m&&sp){var L=Math.abs(sp.ln);if(same(m.team,sp.team))return sp.ln>0?{t:"ok",msg:"Same game, same team. Fine together."}:{t:"link",msg:"Same game, same team. Both hit if "+m.team+" wins by more than "+L+"."};
+  return sp.ln>0?{t:"mid",msg:"Opposite sides of the same game. Both hit ONLY if "+m.team+" wins by less than "+L+" points."}:{t:"bad",msg:"Opposite sides of the same game. These can't both win."}}
+ if(l1.kind==="m"&&l2.kind==="m"&&!same(l1.team,l2.team))return{t:"bad",msg:"Both teams to win the same game. These can't both win."};
+ return{t:"link",msg:"Same game. These legs are linked."}}
 function opp(a,team){var ts=tv(a).split(" vs ");if(ts.length!==2)return"";return same(ts[0],team)?ts[1]:same(ts[1],team)?ts[0]:""}
 var STAT="points|rebounds|assists|steals|blocks|threes|three-pointers|3-pointers|rushing yards|receiving yards|passing yards|rush yards|rec yards|pass yards|receptions|passing tds|passing touchdowns|rushing tds|receiving tds|touchdowns|interceptions|strikeouts|hits|home runs|total bases|rbis|runs|goals|shots on target|shots|saves|sacks|tackles|pts|reb|ast|pra|points \\+ rebounds \\+ assists";
 function propOf(a){var t=String(a.market||""),m=new RegExp("^(?:will\\s+)?([A-Z][\\w.'\\- ]+?)(?::|\\s+(?:to\\s+)?(?:score|record|have|get|throw|rush|catch|make|hit|total))\\s*(?:over\\s+)?(?:\\(?\\s*)?(?:("+STAT+")\\s*)?(?:o\\/u|over\\/under|over|under)?\\s*([\\d.]+)\\s*(?:\\)?)\\s*("+STAT+")?","i").exec(t);if(!m)return null;var st=(m[2]||m[4]||"").toLowerCase();if(!st)return null;var ln=parseFloat(m[3]);if(isNaN(ln))return null;var nm=m[1].replace(/^will\s+/i,"").trim();if(/\bvs\.?\b|\bat\b|\bwin\b|spread|total/i.test(nm))return null;var o=String(a.outcome||"").toLowerCase(),over=/under/i.test(t)&&!/over/i.test(t)?false:true,no=false;if(o==="under")no=true;else if(o==="over")no=false;else if(o==="no")no=true;else if(o==="yes")no=false;else return null;if(/under/i.test(t)&&!/over|o\/u|over\/under/i.test(t))no=!no;var th=Math.floor(ln)+1,nice={"pts":"points","reb":"rebounds","ast":"assists","pra":"points + rebounds + assists","rush yards":"rushing yards","rec yards":"receiving yards","pass yards":"passing yards","three-pointers":"threes","3-pointers":"threes"}[st]||st;return{line:nm+": "+th+"+ "+nice,no:no}}
@@ -352,15 +367,25 @@ function polyHtml(){var h='';
   var by={};rows.filter(function(p){return !isCombo.test(String(p.title||""))}).forEach(function(p){var a=pa(p),k=gkey(a);if(!by[k]||Math.max(parseFloat(p.currentValue)||0,parseFloat(p.initialValue)||0)>Math.max(parseFloat(by[k].currentValue)||0,parseFloat(by[k].initialValue)||0))by[k]=p});
   var legs=Object.keys(by).map(function(k){return by[k]}).filter(function(p){var av=parseFloat(p.avgPrice);return !(av>0.93)});
   if(legs.length>=2){legs.sort(function(a,b){return(parseFloat(b.currentValue)||0)-(parseFloat(a.currentValue)||0)});stacks.push({c:c,legs:legs.slice(0,6),tot:legs.reduce(function(t,p){return t+Math.max(parseFloat(p.currentValue)||0,parseFloat(p.initialValue)||0)},0)})}});
- var nOpen=0,nCap=0;C.forEach(function(c){var r=openRaw(c.w);if(r.length){nCap++;nOpen+=r.length}});h+='<div class="sub" style="margin:0 2px 6px;font-size:13.5px">Found '+nOpen+' open bets ($499+) across '+nCap+' cappers · '+stacks.length+' with 2+ games · '+combos.length+' combo-style</div><h3 style="margin:14px 2px 6px">🎰 Combo bets cappers made</h3>';
+ var nOpen=0,nCap=0;C.forEach(function(c){var r=openRaw(c.w);if(r.length){nCap++;nOpen+=r.length}});h+='<div class="sub" style="margin:0 2px 6px;font-size:13.5px">Found '+nOpen+' open bets ($499+) across '+nCap+' cappers · '+stacks.length+' with 2+ games · '+combos.length+' combo-style</div><h3 style="margin:14px 2px 6px">🎰 Real parlays cappers placed</h3><div class="sub" style="margin:0 2px 6px;font-size:13.5px">One bet with several legs. All legs must win for the capper to get paid.</div>';
  if(!combos.length)h+='<div class="card empty"><b>No combo-style bets found</b>None of the checked cappers hold a bet whose market is a combo/parlay right now.</div>';
  combos.sort(function(a,b){return(parseFloat(b.p.currentValue)||0)-(parseFloat(a.p.currentValue)||0)});
  h+=combos.slice(0,20).map(function(x){var p=x.p,av=parseFloat(p.avgPrice);return'<div class="card"><div class="meta"><span>'+e(x.c.who||x.c.w.slice(0,8))+'</span><span>Combo bet</span></div><div class="ttl">'+e(String(p.title))+'</div><div class="pn" style="margin-top:6px;font-weight:900;font-size:17px;color:var(--a2)">PICK: '+e(String(p.outcome))+'</div><div class="tags"><span class="tag d">$'+Math.round(parseFloat(p.currentValue)||0).toLocaleString()+'</span>'+(av>0?'<span class="tag g">in at '+mx(av)+'</span>':'')+'</div>'+capRec(x.c)+'</div>'}).join("");
- h+='<h3 style="margin:18px 2px 6px">📚 Slates cappers stacked (2+ games)</h3>';
+ h+='<h3 style="margin:18px 2px 6px">📚 Separate bets one capper is holding</h3><div class="sub" style="margin:0 2px 6px;font-size:13.5px">These are NOT a parlay. The capper placed each bet on its own, so each one wins or loses by itself. The scanner groups them, and "All hit" shows what you\'d get if you combined them into a parlay yourself.</div>';
  if(!stacks.length)h+='<div class="card empty"><b>No stacked slates yet</b>'+(done<C.length?"Still checking cappers…":"No top capper has 2+ separate games open right now.")+'</div>';
  stacks.sort(function(a,b){return b.legs.length-a.legs.length||b.tot-a.tot});
- h+=stacks.slice(0,20).map(function(s){var mult=s.legs.reduce(function(t,p){var av=parseFloat(p.avgPrice);return t*(av>0?1/av:1)},1);
-  return'<div class="card"><div class="meta"><span>'+e(s.c.who||s.c.w.slice(0,8))+'</span><span>'+s.legs.length+' games · $'+Math.round(s.tot).toLocaleString()+'</span></div><div class="tags"><span class="tag g">All hit: '+(Math.round(mult*10)/10)+'x</span><span class="tag d">Their own stack</span></div>'+capRec(s.c)+s.legs.map(function(p,i){var a=pa(p),sp=sportOf(a.market),av=parseFloat(p.avgPrice),v=Math.max(parseFloat(p.currentValue)||0,parseFloat(p.initialValue)||0);return'<div class="dr"><b>'+(i+1)+'. '+e(sp.e+" "+tv(a))+'</b><span>'+e(pt(a))+(av>0?' · in at '+mx(av):'')+'</span><small>$'+Math.round(v).toLocaleString()+' staked</small></div>'}).join("")+'<div class="gm" style="font-size:13px;margin-top:6px">Only if you copy every leg, and every leg has to win. Their record is above.</div></div>'}).join("");
+ h+=stacks.slice(0,20).map(function(s){var A=s.legs.map(function(p){var a=pa(p);return{p:p,a:a,l:legOf(a)}}),notes={},bad=0,mids=[],fut=0;
+  A.forEach(function(x,i){if(x.l.kind==="f")fut++;for(var j=0;j<i;j++){var c=legClash(A[j].a,A[j].l,x.a,x.l);if(c&&c.t!=="ok"){notes[i]=(notes[i]||[]).concat(["leg "+(j+1)+": "+c.msg]);if(c.t==="bad")bad++;if(c.t==="mid")mids.push(c.msg.replace(/^.*ONLY if /,""))}}});
+  var mult=A.reduce(function(t,x){var av=parseFloat(x.p.avgPrice);return x.l.kind==="f"?t:t*(av>0?1/av:1)},1),allHit=bad?'<span class="tag" style="background:#fde2e2">All hit: impossible (legs conflict)</span>':'<span class="tag g">All hit: '+(Math.round(mult*10)/10)+'x'+(fut?' (game legs only)':'')+'</span>';
+  return'<div class="card"><div class="meta"><span>'+e(s.c.who||s.c.w.slice(0,8))+'</span><span>'+s.legs.length+' bets · $'+Math.round(s.tot).toLocaleString()+'</span></div><div class="tags">'+allHit+'<span class="tag d">Their own stack</span></div>'+capRec(s.c)
+   +A.map(function(x,i){var a=x.a,p=x.p,sp=sportOf(a.market+" "+(a.slug||"")),av=parseFloat(p.avgPrice),v=Math.max(parseFloat(p.currentValue)||0,parseFloat(p.initialValue)||0),cp=parseFloat(p.curPrice),gm=/ vs /.test(tv(a))?tv(a):String(p.title||"").replace(/^spread:\s*/i,"").replace(/\s*\([+-]?[\d.]+\)\s*$/,"");
+    return'<div class="dr" style="display:block"><b>'+(i+1)+'. '+e(sp.e+" "+gm)+'</b>'
+     +'<div style="margin-top:3px">🎯 <b>Their bet:</b> '+e(x.l.txt)+(av>0?' · in at '+mx(av):'')+' · $'+Math.round(v).toLocaleString()+'</div>'
+     +'<small style="display:block;color:var(--mut)">'+e(x.l.plain)+(cp>0&&av>0?' · price now '+mx(cp)+(cp>av+0.03?' (moved their way)':cp<av-0.03?' (moved against them)':''):'')+'</small>'
+     +'<div style="margin-top:3px">🟩 <b>On Kalshi:</b> '+e(dot(kw(a)))+'</div>'
+     +(x.l.kind==="f"?'<small style="display:block">⏳ Season-long bet, not a game today'+(av>=0.85?'. Pays almost nothing ('+mx(av)+')':'')+'.</small>':'')
+     +(notes[i]?'<small style="display:block;color:#b45309">⚠️ '+e(notes[i].join(" · "))+'</small>':'')+'</div>'}).join("")
+   +'<div class="gm" style="font-size:13px;margin-top:6px">'+(bad?'Two legs bet against each other, so this isn\'t a parlay you can copy. Pick ONE side.':mids.length?'Copying every leg as a parlay only pays if '+e(mids.join(" and "))+'.':'All hit = every leg has to win if you copy it as a parlay.')+(fut?' Season-long legs are left out of the payout.':'')+'</div></div>'}).join("");
  S.polyN=stacks.length+combos.length;return h}
 function risky(){if(!S.pool.length&&!S.poolT)loadPool();var cm=(S.cmb==="poly"?"poly":"stacks"),F=feedStacks(),nF=F.stacks.length+F.combos.length,nK=S.kal&&S.kal.rows?S.kal.rows.filter(function(x){return !(x.p>=0.85)}).length:null,body="";
  var h='<div class="sub" style="margin:0 2px 8px;font-size:13.5px">🔄 Scan '+tm(S.scanT)+(S.srv&&S.srv.t?' · 🛰️ Server data '+tm(S.srv.t):'')+'</div>';
