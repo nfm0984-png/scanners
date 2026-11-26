@@ -123,7 +123,7 @@ body{background:#E6F3EA}
   <div class="hero">
     <small>ORCA · LIVE FEED</small>
     <h2>Big wallets. Fresh trades. No hedges.</h2>
-    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-25 · 22:45</div>
+    <div id="status" style="opacity:.95">Not loaded yet</div><div style="font-size:11px;opacity:.6;margin-top:2px">build 2026-11-25 · 22:55</div>
     <div class="hb"><button class="p" id="go">⚡ Scan</button><button id="auto">Auto: off</button></div>
     <div class="st">
       <div><b id="s1">0</b><span>Positions</span></div>
@@ -274,6 +274,15 @@ function qok(x){var px=x.px;return x.score>=72&&x.ms.length>=2&&px>=1/3&&px<=0.7
  if(S.only&&S.pool.length){var cw={};RA.forEach(function(x){x.ms.forEach(function(m){cw[(m.a.wallet||m.a.who).toLowerCase()]=1})});h+='<div class="sub" style="margin:8px 2px"><b>'+Object.keys(cw).length+' top cappers with picks right now (best '+S.lim+' of the leaderboard\'s top '+S.pool.length+' that are trading)</b></div>'}
  if(SL)h+='<div class="sub" style="margin:8px 2px">⚖️ '+SL+' weaker side'+(SL===1?"":"s")+' of split games hidden. The stronger side is shown with a note.</div>';
  if(S.endedN)h+='<div class="sub" style="margin:8px 2px">🏁 '+S.endedN+' pick'+(S.endedN===1?"":"s")+' on games that already ended hidden.</div>';
+ // 🏆 Best pick right now: one pick, always, from what's on screen. Not started, price not run up,
+ // not a contested split; ranked by score, then category vets, then money. Says plainly when it's weak.
+ (function(){var pool=S.sport?R:RA,ok=function(x){return(!x.a.gt||x.a.gt>Date.now())&&!(x.drift>0.05)},C=pool.filter(function(x){return ok(x)&&!x.split});if(!C.length)C=pool.filter(ok);if(!C.length)return;
+  var b=C.slice().sort(function(p,q){return q.score-p.score||(q.vets||0)-(p.vets||0)||q.ms.length-p.ms.length||q.usd-p.usd})[0],g=grade(b.score),rv=review(b),tm=b.a.gt?new Date(b.a.gt).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit"}):"";
+  var say=g==="A"?"Strong pick. The data lines up.":g==="B"?"Decent pick. Normal-to-small stake.":"Best of a weak board. Small stake or skip.";
+  h+='<div class="card" style="border:2px solid var(--a2)"><b>🏆 Best pick right now</b><div class="sub" style="margin:2px 0 6px">'+e(say)+'</div><div class="ttl">'+e(tv(b.a))+'</div><div class="pn" style="margin-top:4px;font-weight:900;font-size:19px;color:var(--a2)">PICK: '+e(b.lab)+'</div>'+(tm?'<div class="gm">'+e(tm)+' · pays '+mx(b.px)+'</div>':'<div class="gm">pays '+mx(b.px)+'</div>')
+   +'<div class="tags"><span class="tag sc s'+g+'">Score '+b.score+' · '+g+'</span>'+stakeTag(b)+'<span class="tag">'+e(rv.v)+'</span><button class="tag cp" data-cp="'+e(tv(b.a)+" | Kalshi: "+kw(b.a)+(tm?" | "+tm:""))+'" style="border:0;cursor:pointer">Copy pick</button></div>'
+   +(rv.pro.length?'<div class="gm" style="margin-top:6px">✅ '+e(rv.pro.join(" · "))+'</div>':'')+(rv.con.length?'<div class="gm">⚠️ '+e(rv.con.join(" · "))+'</div>':'')
+   +'<small style="display:block;margin-top:6px;color:var(--mut)">'+e(b.why)+'</small>'+capLine(b)+'</div>'})();
  if(RA.length&&!S.sport){var TP=RA.filter(function(x){return x.score>=72&&!x.split&&x.px>=0.40&&x.px<=0.80&&(!x.a.gt||x.a.gt>Date.now())&&!(x.drift>0.05)}).slice(0,5);h+='<div class="card" style="border-color:var(--a2)"><b>⭐ Top picks now</b><div class="sub" style="margin:2px 0 6px">A-grade, game not started, price not run up.</div>'+(TP.length?TP.map(function(x,i){return'<div class="dr"><b>'+(i+1)+'. '+e(x.a.sp.e+" "+kw(x.a))+'</b><span>'+e(tv(x.a))+' · '+x.score+' · '+mx(x.px)+'</span><small>'+e(x.why)+'</small></div>'}).join(""):'<div class="sub">None right now. Good picks are rare. Check back as new bets come in.</div>')+'</div>'}
  if(RA.length)h+=sportChips(RA.map(function(x){return x.a.sp}));
  R.forEach(function(x,i){var a=x.a;
