@@ -350,6 +350,17 @@ def v2_rows(w, status, limit):
     return rows_of(j)
 
 
+def v2_deep(w, status, sizes):
+    """Ask for the deepest history first; fall back to smaller pages if the API refuses a big limit."""
+    last = None
+    for n in sizes:
+        try:
+            return v2_rows(w, status, n)
+        except Exception as e:
+            last = e
+    raise last
+
+
 def from_v2(r):
     """Convert a v2 (snake_case) row to the camelCase shape the page already reads."""
     def g(*k):
@@ -369,7 +380,7 @@ def wallets_data(wallets):
     pos, closed = {}, {}
     for i, w in enumerate(wallets):
         try:
-            pos[w] = slim([from_v2(r) for r in v2_rows(w, "OPEN", 60)], POS_KEYS)
+            pos[w] = slim([from_v2(r) for r in v2_deep(w, "OPEN", (100, 60))], POS_KEYS)
         except Exception as e:
             print("positions fail", w, e, file=sys.stderr)
             try:
@@ -377,7 +388,7 @@ def wallets_data(wallets):
             except Exception as e2:
                 print("orca positions fail", w, e2, file=sys.stderr)
         try:
-            closed[w] = slim([from_v2(r) for r in v2_rows(w, "CLOSED", 50)], CLOSED_KEYS)
+            closed[w] = slim([from_v2(r) for r in v2_deep(w, "CLOSED", (100, 50))], CLOSED_KEYS)
         except Exception as e:
             print("closed fail", w, e, file=sys.stderr)
         time.sleep(0.25)
