@@ -254,7 +254,7 @@ def leaderboard():
 
 
 POS_KEYS = ("title", "outcome", "avgPrice", "curPrice", "currentValue", "initialValue",
-            "cashPnl", "percentPnl", "endDate", "redeemable", "slug")
+            "cashPnl", "percentPnl", "endDate", "redeemable", "slug", "boughtAt", "lastAt")
 CLOSED_KEYS = ("title", "outcome", "avgPrice", "realizedPnl", "timestamp", "slug")
 
 
@@ -373,7 +373,8 @@ def from_v2(r):
             "initialValue": ent, "cashPnl": num(g("unrealized_pnl", "total_pnl")),
             "realizedPnl": num(g("realized_pnl", "total_pnl")), "endDate": g("end_date"),
             "slug": g("slug"), "redeemable": bool(g("redeemable")),
-            "timestamp": g("last_event_at", "first_entry_at")}
+            "timestamp": g("last_event_at", "first_entry_at"),
+            "boughtAt": g("first_entry_at"), "lastAt": g("last_event_at")}
 
 
 def wallets_data(wallets):
