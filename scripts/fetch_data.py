@@ -165,7 +165,7 @@ def dead_open(open_rows, now=None):
         win = c >= 0.98
         cv, ap = num(p.get("currentValue")) or 0, num(p.get("avgPrice"))
         pnl = (cv - cost if cv > 0 else (cost * (1 / ap - 1) if ap else 0.01)) if win else -cost
-        out.append({"title": p.get("title"), "outcome": p.get("outcome"), "avgPrice": ap,
+        out.append({"title": p.get("title"), "outcome": p.get("outcome"), "avgPrice": ap, "initialValue": cost,
                     "realizedPnl": max(pnl, 0.01) if win else pnl, "timestamp": (t + 86399) if t else now - 86400,
                     "slug": p.get("slug"), "unred": 1})
     return out
@@ -253,7 +253,7 @@ def leaderboard():
 
 POS_KEYS = ("title", "outcome", "avgPrice", "curPrice", "currentValue", "initialValue",
             "cashPnl", "percentPnl", "endDate", "redeemable", "slug", "boughtAt", "lastAt")
-CLOSED_KEYS = ("title", "outcome", "avgPrice", "realizedPnl", "timestamp", "slug")
+CLOSED_KEYS = ("title", "outcome", "avgPrice", "initialValue", "realizedPnl", "timestamp", "slug")
 
 
 def slim(rows, keys):
