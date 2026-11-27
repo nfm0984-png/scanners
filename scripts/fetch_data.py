@@ -359,7 +359,7 @@ def v2_deep(w, status, sizes):
     raise last
 
 
-def v2_year(w, max_rows=400):
+def v2_year(w, max_rows=1500):
     """Closed bets going back up to a year (pages with offset; stops if the API ignores offset)."""
     rows = v2_deep(w, "CLOSED", (100, 50))
     first = (rows[0].get("title"), rows[0].get("outcome")) if rows else None
