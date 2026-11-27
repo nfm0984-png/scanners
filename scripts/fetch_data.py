@@ -359,6 +359,66 @@ def v2_deep(w, status, sizes):
     raise last
 
 
+def v2_year(w, max_rows=400):
+    """Closed bets going back up to a year (pages with offset; stops if the API ignores offset)."""
+    rows = v2_deep(w, "CLOSED", (100, 50))
+    first = (rows[0].get("title"), rows[0].get("outcome")) if rows else None
+    cutoff = time.time() - 365 * 86400
+    off = len(rows)
+    while rows and len(rows) < max_rows and off >= 50:
+        oldest = min(tsec(r.get("last_event_at") or r.get("timestamp")) or time.time() for r in rows)
+        if oldest < cutoff:
+            break
+        try:
+            more = rows_of(get(f"{DATA_API}/v2/positions?user={w}&status=CLOSED&limit=100&offset={off}&sort_by=TIMESTAMP&sort_direction=DESC"))
+        except Exception:
+            break
+        if not more or (more[0].get("title"), more[0].get("outcome")) == first:
+            break
+        rows += more
+        off += len(more)
+        if len(more) < 50:
+            break
+        time.sleep(0.2)
+    return rows
+
+
+def tsec(x):
+    try:
+        v = float(x)
+        return v / 1000 if v > 1e11 else v
+    except Exception:
+        pass
+    try:
+        import datetime
+        return datetime.datetime.fromisoformat(str(x).replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return 0
+
+
+def period_stats(rows):
+    """P&L over the last 30 days and the last 365 days of settled bets (losses included)."""
+    now = time.time()
+    out = {"p30": 0.0, "n30": 0, "p365": 0.0, "n365": 0, "days": 0}
+    ts = []
+    for p in rows:
+        x = float(p.get("realizedPnl") or 0)
+        t = tsec(p.get("timestamp"))
+        if not x or not t:
+            continue
+        ts.append(t)
+        age = now - t
+        if age <= 365 * 86400:
+            out["p365"] += x
+            out["n365"] += 1
+        if age <= 30 * 86400:
+            out["p30"] += x
+            out["n30"] += 1
+    out["days"] = round((now - min(ts)) / 86400) if ts else 0
+    out["p30"], out["p365"] = round(out["p30"]), round(out["p365"])
+    return out
+
+
 def from_v2(r):
     """Convert a v2 (snake_case) row to the camelCase shape the page already reads."""
     def g(*k):
@@ -387,7 +447,9 @@ def wallets_data(wallets):
             except Exception as e2:
                 print("orca positions fail", w, e2, file=sys.stderr)
         try:
-            closed[w] = slim([from_v2(r) for r in v2_deep(w, "CLOSED", (100, 50))], CLOSED_KEYS)
+            full = [from_v2(r) for r in v2_year(w)]
+            STATS[w] = period_stats(settled(full, pos.get(w)))
+            closed[w] = slim(full[:100], CLOSED_KEYS)
         except Exception as e:
             print("closed fail", w, e, file=sys.stderr)
         time.sleep(0.25)
@@ -395,6 +457,28 @@ def wallets_data(wallets):
 
 
 ERR = [""]
+STATS = {}
+
+
+def period_filter(lb):
+    """Keep only cappers who are UP over the last 30 days AND the last 12 months."""
+    for r in lb:
+        st = STATS.get(wallet_of(r))
+        if not st:
+            continue
+        r["per"] = st
+        if st["n30"] < 3:
+            r["drop"] = r.get("drop") or "too few bets this month"
+        elif st["p30"] <= 0:
+            r["drop"] = r.get("drop") or "down this month"
+        elif st["p365"] <= 0:
+            r["drop"] = r.get("drop") or "down over 12 months"
+    dropped = [r for r in lb if r.get("drop")]
+    if len(lb) - len(dropped) >= 15:
+        lb[:] = [r for r in lb if not r.get("drop")]
+    print("period drops:", len(dropped), "kept:", len(lb))
+    for i, r in enumerate(lb):
+        r["rank"] = i + 1
 
 
 def kalshi_combos():
@@ -524,6 +608,7 @@ def main():
         print("positions:", len(pos), "closed:", len(closed))
         if lb and lb[0].get("q") is not None:
             recent_form(lb, closed, pos)
+            period_filter(lb)
             dump("leaderboard.json", lb)
         dump("positions.json", pos)
         dump("closed.json", closed)
